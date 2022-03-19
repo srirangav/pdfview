@@ -24,11 +24,19 @@ Running pdfview.sh:
 
 History:
 
+    v.0.1.1  Update README.txt to mention MacOSX, FreeBSD,
+             and OpenBSD
     v.0.1.0  Initial release
 
 License:
 
     See LICENSE.txt
+
+Platforms:
+
+   pdfview.sh has been tested on MacOSX (11.x), FreeBSD (13.0),
+   and OpenBSD (7.0). It should work on other systems that have
+   pdftotext installed.
 
 Notes:
 
