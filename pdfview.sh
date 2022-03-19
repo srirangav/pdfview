@@ -15,7 +15,7 @@ COLS=75
 PGM_PDF2TXT=pdftotext
 PGM_PDF2TXT_OPTS="-layout -nopgbrk"
 PGM_FMT=fmt
-PGM_FMT_OPTS="-sp"
+PGM_FMT_OPTS="-s"
 PGM_FOLD=fold
 PGM_FOLD_OPTS="-s"
 

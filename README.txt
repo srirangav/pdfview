@@ -1,7 +1,7 @@
 README
 ------
 
-pdfview.sh v0.1
+pdfview.sh v0.1.2
 By Sriranga Veeraraghavan <ranga@calalum.org>
 
 Homepage:
@@ -24,6 +24,7 @@ Running pdfview.sh:
 
 History:
 
+    v.0.1.2  Minor change for Debian
     v.0.1.1  Update README.txt to mention MacOSX, FreeBSD,
              and OpenBSD
     v.0.1.0  Initial release
@@ -35,8 +36,8 @@ License:
 Platforms:
 
    pdfview.sh has been tested on MacOSX (11.x), FreeBSD (13.0),
-   and OpenBSD (7.0). It should work on other systems that have
-   pdftotext installed.
+   OpenBSD (7.0), and Debian (11.0) . It should work on other 
+   systems that have pdftotext installed.
 
 Notes:
 
