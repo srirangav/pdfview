@@ -1,7 +1,7 @@
 README
 ------
 
-pdfview.sh v0.1.2
+pdfview.sh v0.1.3
 By Sriranga Veeraraghavan <ranga@calalum.org>
 
 Homepage:
@@ -24,6 +24,7 @@ Running pdfview.sh:
 
 History:
 
+    v.0.1.3  Fixes based on shellcheck
     v.0.1.2  Minor change for Debian
     v.0.1.1  Update README.txt to mention MacOSX, FreeBSD,
              and OpenBSD

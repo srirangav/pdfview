@@ -3,8 +3,14 @@
 # pdfview.sh - displays the text in a PDF; relies on pdftotext from
 #              xpdf (https://www.xpdfreader.com/pdftotext-man.html)
 #              or poppler (https://github.com/freedesktop/poppler) 
+#
 # Copyright (c) 2022 Sriranga Veeraraghavan <ranga@calalum.org>. All 
 # rights reserved.  See LICENSE.txt.
+#
+# v.0.1.0 - initial version
+# v.0.1.1 - fixes for debian
+# v.0.1.2 - fixes based on shellcheck
+#
 
 # default columns to for wrapping
 
@@ -14,9 +20,9 @@ COLS=75
 
 PGM_PDF2TXT=pdftotext
 PGM_PDF2TXT_OPTS="-layout -nopgbrk"
-PGM_FMT=fmt
+PGM_FMT="fmt"
 PGM_FMT_OPTS="-s"
-PGM_FOLD=fold
+PGM_FOLD="fold"
 PGM_FOLD_OPTS="-s"
 
 # global variables
@@ -34,7 +40,7 @@ printUsage()
 
 printError()
 {
-   echo "ERROR: $@" 1>&2;
+   echo "ERROR: " "$@" 1>&2;
 }
 
 # main
@@ -48,7 +54,7 @@ if [ X"$1" = X"-c" ] ; then
       printUsage;
       exit 1;
    fi
-   if [ "$1" -eq "$1" > /dev/null 2>&1 ] ; then
+   if test "$1" -ge 0 2>/dev/null ; then
       COLS="$1" ;
       shift;
    else
@@ -73,8 +79,9 @@ fi
 
 # check to see if pdftotext is available
 
-type "$PGM_PDF2TXT" > /dev/null 2>&1
-if [ $? != 0 ] ; then
+if type "$PGM_PDF2TXT" > /dev/null 2>&1 ; then
+   :
+else
    printError "$PGM_PDF2TXT not found." ;
    exit 1;
 fi
