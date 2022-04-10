@@ -1,7 +1,7 @@
 README
 ------
 
-pdfview.sh v0.1.3
+pdfview.sh v.0.1.3
 By Sriranga Veeraraghavan <ranga@calalum.org>
 
 Homepage:
