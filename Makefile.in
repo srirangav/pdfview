@@ -1,0 +1,49 @@
+# Makefile.in
+
+PREFIX = @prefix@
+PGM_SRCS = @PGM_SRCS@
+PGM = @PACKAGE_NAME@
+PGM_REL = @PACKAGE_VERSION@
+PGM_MAN = $(PGM).1
+PGM_BINDIR = $(DESTDIR)$(PREFIX)/bin
+PGM_MANDIR = $(DESTDIR)$(PREFIX)/man/man1
+PGM_FILES = $(PGM_SRCS) $(PGM_MAN) Makefile README.txt LICENSE.txt
+
+OBJC = @OBJC@
+CFLAGS=@OBJCFLAGS@
+LIBS=@LIBS@
+INSTALL=@INSTALL@
+
+# rules
+
+all:
+	$(OBJC) $(CFLAGS) -o $(PGM) $(PGM_SRCS) $(LIBS)
+
+lslangs:
+	$(OBJC) $(CFLAGS) -o lslangs listSupportedLangs.m $(LIBS)
+
+man2txt:
+	nroff -Tascii -man $(PGM_MAN) | col -b -x > $(PGM_MAN).txt
+
+.PHONY: distclean
+distclean: clean
+	/bin/rm -f Makefile config.log config.status
+	/bin/rm -rf ./autom4te.cache ./$(PGM).dSYM
+
+.PHONY: clean
+clean:
+	/bin/rm -f *.o *~ core .DS_Store $(PGM) $(PGM_MAN).txt lslangs *.tgz
+	/bin/rm -rf ./$(PGM).dSYM ./lslangs.dSYM
+
+# install and uninstall rules
+# from: http://nuclear.mutantstargoat.com/articles/make/#writing-install-uninstall-rules
+
+.PHONY: install
+install: $(PGM)
+	mkdir -p $(PGM_BINDIR) $(PGM_MANDIR)
+	$(INSTALL) $(PGM) $(PGM_BINDIR)/$(PGM)
+	$(INSTALL) -m 0644 $(PGM_MAN) $(PGM_MANDIR)/$(PGM_MAN)
+
+.PHONY: uninstall
+uninstall:
+	rm $(PGM_BINDIR)/$(PGM) $(PGM_MANDIR)/$(PGM_MAN)
