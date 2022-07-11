@@ -1,7 +1,7 @@
 README
 ------
 
-pdfview v.0.2.0
+pdfview v.0.2.1
 
 Homepage:
 
@@ -65,6 +65,7 @@ Install:
 
 History:
 
+    v.0.2.1  Add page numbering support to MacOSX version
     v.0.2.0  Add PDFKit based implementation for MacOSX
     v.0.1.3  Fixes based on shellcheck
     v.0.1.2  Minor change for Debian

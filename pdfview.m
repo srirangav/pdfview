@@ -4,6 +4,7 @@
     History:
 
     v. 0.1.0 (07/06/2022) - Initial version
+    v. 0.1.1 (07/11/2022) - add page numbering support
 
     Copyright (c) 2022 Sriranga R. Veeraraghavan <ranga@calalum.org>
 
@@ -34,21 +35,43 @@
 #import <unistd.h>
 #import <string.h>
 
+/* globals */
+
+static BOOL       gQuiet    = NO;
+
+/* constants */
+
 static NSString   *gUTIPDF  = @"com.adobe.pdf";
 static const char *gPgmName = "pdfview";
-static const char *gPgmOpts = "hq";
-static BOOL       gQuiet    = NO;
+
+/*
+    command line options:
+
+        -h - help
+        -q - quiet mode (no errors / info messages)
+        -n - print filename and page number
+*/
 
 enum
 {
     gPgmOptHelp      = 'h',
     gPgmOptQuiet     = 'q',
+    gPgmOptPageNum   = 'n',
 };
+
+static const char *gPgmOpts = "hqn";
+
+/* options */
+
+typedef struct
+{
+    BOOL printPageNum;
+} pdfview_opts_t;
 
 /* prototypes */
 
 static void printError(const char *format, ...);
-static BOOL printPDF(NSURL *url);
+static BOOL printPDF(NSURL *url, pdfview_opts_t *opts);
 static void printUsage(void);
 
 /* functions */
@@ -57,10 +80,11 @@ static void printUsage(void);
 
 static void printUsage(void)
 {
-    fprintf(stderr, 
-            "Usage: %s [-%c] [files]\n", 
+    fprintf(stderr,
+            "Usage: %s [-%c] [-%c] [files]\n",
             gPgmName,
-            gPgmOptQuiet);
+            gPgmOptQuiet,
+            gPgmOptPageNum);
 }
 
 /* printError - print an error message */
@@ -82,17 +106,25 @@ static void printError(const char *format, ...)
 
 /* printPDF - prints the text contained in the specified PDF */
 
-BOOL printPDF(NSURL *url)
+static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
 {
     PDFDocument *pdfDoc = nil;
     PDFPage *pdfPage = nil;
-    NSUInteger pdfPages = 0, i = 0;
-    NSString *pageText = nil;
+    NSUInteger pdfPages = 0, numLines = 0, i = 0, j = 0;
+    NSString *pageText = nil, *fileName = nil, *line = nil;
+    NSMutableArray *lines = nil;
+    BOOL printPageNum = NO;
 
     if (url == nil)
     {
         printError("No file specified!\n");
         return NO;
+    }
+
+    if (opts != NULL && opts->printPageNum == YES)
+    {
+        printPageNum = YES;
+        fileName = [url lastPathComponent];
     }
 
     pdfDoc = [[PDFDocument alloc] initWithURL: url];
@@ -111,18 +143,66 @@ BOOL printPDF(NSURL *url)
         return NO;
     }
 
-    for(i = 0 ; i < pdfPages ; i++) 
+    for(i = 0 ; i < pdfPages ; i++)
     {
         pdfPage = [pdfDoc pageAtIndex: i];
         if (pdfPage == NULL)
         {
             continue;
         }
-        
+
         pageText = [[pdfPage string] stringByTrimmingCharactersInSet:
                     [NSCharacterSet whitespaceAndNewlineCharacterSet]];
         if (pageText != nil && [pageText length] > 0)
         {
+
+            /*
+                if page numbering is requested, if possible, split
+                string representation of the page on newlines and
+                print the file name and page number as a prefix
+                to each line.
+            */
+
+            if (printPageNum)
+            {
+                lines = [[pageText componentsSeparatedByCharactersInSet:
+                         [NSCharacterSet newlineCharacterSet]] mutableCopy];
+                if (lines != nil)
+                {
+                    numLines = [lines count];
+                    if (numLines > 0)
+                    {
+                        for (j = 0; j < numLines; j++)
+                        {
+                            line = [lines objectAtIndex: j];
+                            if (line != nil)
+                            {
+                                if (fileName != nil)
+                                {
+                                    fprintf(stdout,
+                                            "%s:",
+                                            [fileName cStringUsingEncoding: NSUTF8StringEncoding]);
+                                }
+                                fprintf(stdout, "%ld:", i+1);
+                                fprintf(stdout,
+                                        "%s\n",
+                                        [line cStringUsingEncoding: NSUTF8StringEncoding]);
+
+                            }
+                        }
+                        continue;
+                    }
+                }
+
+                if (fileName != nil)
+                {
+                    fprintf(stdout,
+                            "%s:",
+                            [fileName cStringUsingEncoding: NSUTF8StringEncoding]);
+                }
+                fprintf(stdout, "%ld:", i+1);
+            }
+
             fprintf(stdout,
                     "%s\n",
                     [pageText cStringUsingEncoding: NSUTF8StringEncoding]);
@@ -144,6 +224,7 @@ int main(int argc, char * const argv[])
     NSString *path = nil, *type = nil;
     NSURL *fURL = nil;
     NSError *error = nil;
+    pdfview_opts_t opts;
 
     /*
         create an autorelease pool:
@@ -152,6 +233,8 @@ int main(int argc, char * const argv[])
 
 @autoreleasepool
     {
+
+    opts.printPageNum = NO;
 
     while ((ch = getopt(argc, argv, gPgmOpts)) != -1)
     {
@@ -162,6 +245,9 @@ int main(int argc, char * const argv[])
                 break;
             case gPgmOptQuiet:
                 gQuiet = YES;
+                break;
+            case gPgmOptPageNum:
+                opts.printPageNum = YES;
                 break;
             default:
                 printError("Unknown option: '%c'\n", ch);
@@ -218,12 +304,12 @@ int main(int argc, char * const argv[])
             printError("Filename is NULL!\n");
             continue;
         }
-        
+
         file = argv[i];
 
         /* get the full path to the file */
 
-        path = 
+        path =
             [fm stringWithFileSystemRepresentation: file
                                             length: strlen(file)];
         if (path == nil)
@@ -234,7 +320,7 @@ int main(int argc, char * const argv[])
         }
 
         /* create a URL representation of the path */
-        
+
         fURL = [NSURL fileURLWithPath: path];
         if (fURL == nil)
         {
@@ -244,7 +330,7 @@ int main(int argc, char * const argv[])
         }
 
         /* verify that this is a PDF file */
-        
+
         if (![fURL getResourceValue: &type
                              forKey: NSURLTypeIdentifierKey
                               error: &error])
@@ -253,10 +339,12 @@ int main(int argc, char * const argv[])
             continue;
         }
 
+#ifdef PDFVIEW_DEBUG
         fprintf(stderr,
                 "DEBUG: TYPE = '%s'\n",
                 [type cStringUsingEncoding: NSUTF8StringEncoding]);
-                
+#endif /* PDFVIEW_DEBUG */
+
         if (![workspace type: type conformsToType: gUTIPDF])
         {
             printError("Not a PDF: '%s'\n", file);
@@ -265,8 +353,8 @@ int main(int argc, char * const argv[])
         }
 
         /* this is a valid PDF, attempt to print it */
-        
-        if (printPDF(fURL) != TRUE)
+
+        if (printPDF(fURL, &opts) != TRUE)
         {
             err++;
         }

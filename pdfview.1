@@ -2,12 +2,16 @@
 .SH NAME
 pdfview \- a simple utility for viewing the text in PDFs
 .SH SYNOPSIS
-pdfview [\-q] [files]
+pdfview [\-q] [\-n] [files]
 .SH DESCRIPTION
 pdfview is a simple utility for viewing the text in a PDF.
 .TP
 .B \-q
 Enables quiet mode \- pdfview will not print out error messages.
+.TP
+.B \-n
+Enables page numbering \- pdfview will prefix each line of a
+given pdf with the filename and page number
 .SH PLATFORMS
 pdfview has been tested on MacOSX 11.x (BigSur) on M1.  It 
 should work on MacOSX 10.4 (Tiger) and newer.
