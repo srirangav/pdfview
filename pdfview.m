@@ -5,6 +5,8 @@
 
     v. 0.1.0 (07/06/2022) - Initial version
     v. 0.1.1 (07/11/2022) - add page numbering support
+    v. 0.1.2 (07/13/2022) - move page numbering support to a separate
+                            function
 
     Copyright (c) 2022 Sriranga R. Veeraraghavan <ranga@calalum.org>
 
@@ -72,6 +74,9 @@ typedef struct
 
 static void printError(const char *format, ...);
 static BOOL printPDF(NSURL *url, pdfview_opts_t *opts);
+static BOOL printPDFPage(NSString *pageText,
+                         NSUInteger pageNo,
+                         NSString *fileName);
 static void printUsage(void);
 
 /* functions */
@@ -104,15 +109,67 @@ static void printError(const char *format, ...)
     va_end(args);
 }
 
+/* printPDFPage - prints the text for a particular page of a PDF */
+
+static BOOL printPDFPage(NSString *pageText,
+                         NSUInteger pageNum,
+                         NSString *fileName)
+{
+    NSString *line = nil;
+    NSMutableArray *lines = nil;
+    NSUInteger numLines = 0, i = 0;
+
+    if (pageText == nil || pageNum < 1)
+    {
+        return NO;
+    }
+
+    lines = [[pageText componentsSeparatedByCharactersInSet:
+             [NSCharacterSet newlineCharacterSet]] mutableCopy];
+    if (lines == nil)
+    {
+        return NO;
+    }
+
+    numLines = [lines count];
+    if (numLines < 1)
+    {
+        return NO;
+    }
+
+    for (i = 0; i < numLines; i++)
+    {
+        line = [lines objectAtIndex: i];
+        if (line == nil)
+        {
+            continue;
+        }
+
+        if (fileName != nil)
+        {
+            fprintf(stdout,
+                    "%s:",
+                    [fileName cStringUsingEncoding: NSUTF8StringEncoding]);
+        }
+
+        fprintf(stdout, "%ld:", pageNum);
+
+        fprintf(stdout,
+                "%s\n",
+                [line cStringUsingEncoding: NSUTF8StringEncoding]);
+    }
+
+    return YES;
+}
+
 /* printPDF - prints the text contained in the specified PDF */
 
 static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
 {
     PDFDocument *pdfDoc = nil;
     PDFPage *pdfPage = nil;
-    NSUInteger pdfPages = 0, numLines = 0, i = 0, j = 0;
-    NSString *pageText = nil, *fileName = nil, *line = nil;
-    NSMutableArray *lines = nil;
+    NSUInteger pdfPages = 0, i = 0;
+    NSString *pageText = nil, *fileName = nil;
     BOOL printPageNum = NO;
 
     if (url == nil)
@@ -165,33 +222,9 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
 
             if (printPageNum)
             {
-                lines = [[pageText componentsSeparatedByCharactersInSet:
-                         [NSCharacterSet newlineCharacterSet]] mutableCopy];
-                if (lines != nil)
+                if (printPDFPage(pageText, i+1, fileName) == YES)
                 {
-                    numLines = [lines count];
-                    if (numLines > 0)
-                    {
-                        for (j = 0; j < numLines; j++)
-                        {
-                            line = [lines objectAtIndex: j];
-                            if (line != nil)
-                            {
-                                if (fileName != nil)
-                                {
-                                    fprintf(stdout,
-                                            "%s:",
-                                            [fileName cStringUsingEncoding: NSUTF8StringEncoding]);
-                                }
-                                fprintf(stdout, "%ld:", i+1);
-                                fprintf(stdout,
-                                        "%s\n",
-                                        [line cStringUsingEncoding: NSUTF8StringEncoding]);
-
-                            }
-                        }
-                        continue;
-                    }
+                    continue;
                 }
 
                 if (fileName != nil)
@@ -363,3 +396,4 @@ int main(int argc, char * const argv[])
     return err;
     }
 }
+
