@@ -7,6 +7,7 @@
     v. 0.1.1 (07/11/2022) - add page numbering support
     v. 0.1.2 (07/13/2022) - move page numbering support to a separate
                             function
+    v. 0.1.3 (07/21/2022) - add expression matching support
 
     Copyright (c) 2022 Sriranga R. Veeraraghavan <ranga@calalum.org>
 
@@ -52,22 +53,28 @@ static const char *gPgmName = "pdfview";
         -h - help
         -q - quiet mode (no errors / info messages)
         -n - print filename and page number
+        -e - print lines that match the specified expression
+        -i - when looking for matching lines, ignore case
 */
 
 enum
 {
-    gPgmOptHelp      = 'h',
-    gPgmOptQuiet     = 'q',
-    gPgmOptPageNum   = 'n',
+    gPgmOptHelp       = 'h',
+    gPgmOptRegex      = 'e',
+    gPgmOptIgnoreCase = 'i',
+    gPgmOptQuiet      = 'q',
+    gPgmOptPageNum    = 'n',
 };
 
-static const char *gPgmOpts = "hqn";
+static const char *gPgmOpts = "hqnie:";
 
 /* options */
 
 typedef struct
 {
     BOOL printPageNum;
+    BOOL ignoreCase;
+    const char *regex;
 } pdfview_opts_t;
 
 /* prototypes */
@@ -76,7 +83,8 @@ static void printError(const char *format, ...);
 static BOOL printPDF(NSURL *url, pdfview_opts_t *opts);
 static BOOL printPDFPage(NSString *pageText,
                          NSUInteger pageNo,
-                         NSString *fileName);
+                         NSString *fileName,
+                         pdfview_opts_t *opts);
 static void printUsage(void);
 
 /* functions */
@@ -86,10 +94,12 @@ static void printUsage(void);
 static void printUsage(void)
 {
     fprintf(stderr,
-            "Usage: %s [-%c] [-%c] [files]\n",
+            "Usage: %s [-%c] [-%c] [-%c [expression] -%c] [files]\n",
             gPgmName,
             gPgmOptQuiet,
-            gPgmOptPageNum);
+            gPgmOptPageNum,
+            gPgmOptRegex,
+            gPgmOptIgnoreCase);
 }
 
 /* printError - print an error message */
@@ -113,11 +123,13 @@ static void printError(const char *format, ...)
 
 static BOOL printPDFPage(NSString *pageText,
                          NSUInteger pageNum,
-                         NSString *fileName)
+                         NSString *fileName,
+                         pdfview_opts_t *opts)
 {
     NSString *line = nil;
     NSMutableArray *lines = nil;
     NSUInteger numLines = 0, i = 0;
+    BOOL printPageNum = NO;
 
     if (pageText == nil || pageNum < 1)
     {
@@ -137,26 +149,116 @@ static BOOL printPDFPage(NSString *pageText,
         return NO;
     }
 
-    for (i = 0; i < numLines; i++)
+    if (opts != NULL && opts->printPageNum == YES)
     {
-        line = [lines objectAtIndex: i];
-        if (line == nil)
+        printPageNum = YES;
+    }
+
+    /*
+        On MacOSX 10.7 and newer, enable support for printing
+        lines that match a user specified regular expression.
+    */
+
+    if (@available(macos 10.7, *))
+    {
+        NSError *error = nil;
+        NSString *regexStr = nil;
+        NSRegularExpression *regex = nil;
+        NSUInteger ignoreCase = 0, numMatches = 0;
+
+        if (opts != NULL && opts->regex != NULL)
         {
-            continue;
+            regexStr = [NSString stringWithUTF8String: opts->regex];
+            if (regexStr != nil)
+            {
+                if (opts->ignoreCase == YES)
+                {
+                    ignoreCase = NSRegularExpressionCaseInsensitive;
+                }
+                regex = [NSRegularExpression
+                            regularExpressionWithPattern: regexStr
+                                                 options: ignoreCase
+                                                   error: &error];
+            }
         }
 
-        if (fileName != nil)
+        for (i = 0; i < numLines; i++)
         {
+            line = [lines objectAtIndex: i];
+            if (line == nil)
+            {
+                continue;
+            }
+
+            /*
+                a regex is available, so check to see if this line
+                contains a match
+            */
+
+            if (regex != nil)
+            {
+                /* get the number of matches in this line */
+
+                numMatches =
+                    [regex numberOfMatchesInString: line
+                                           options: 0
+                                             range: NSMakeRange(0, [line length])];
+
+                /* no matches, skip this line */
+
+                if (numMatches <= 0)
+                {
+                    continue;
+                }
+            }
+
+            /* print the filename and page number, if requested */
+
+            if (printPageNum)
+            {
+                if (fileName != nil)
+                {
+                    fprintf(stdout,
+                            "%s:",
+                            [fileName cStringUsingEncoding: NSUTF8StringEncoding]);
+                }
+
+                fprintf(stdout, "%ld:", pageNum);
+            }
+
+            /* print the line */
+
             fprintf(stdout,
-                    "%s:",
-                    [fileName cStringUsingEncoding: NSUTF8StringEncoding]);
+                    "%s\n",
+                    [line cStringUsingEncoding: NSUTF8StringEncoding]);
         }
+    }
+    else
+    {
+        for (i = 0; i < numLines; i++)
+        {
+            line = [lines objectAtIndex: i];
+            if (line == nil)
+            {
+                continue;
+            }
 
-        fprintf(stdout, "%ld:", pageNum);
+            if (printPageNum)
+            {
+                if (fileName != nil)
+                {
+                    fprintf(stdout,
+                            "%s:",
+                            [fileName cStringUsingEncoding: NSUTF8StringEncoding]);
+                }
 
-        fprintf(stdout,
-                "%s\n",
-                [line cStringUsingEncoding: NSUTF8StringEncoding]);
+                fprintf(stdout, "%ld:", pageNum);
+            }
+
+            fprintf(stdout,
+                    "%s\n",
+                    [line cStringUsingEncoding: NSUTF8StringEncoding]);
+        }
     }
 
     return YES;
@@ -170,7 +272,7 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
     PDFPage *pdfPage = nil;
     NSUInteger pdfPages = 0, i = 0;
     NSString *pageText = nil, *fileName = nil;
-    BOOL printPageNum = NO;
+    BOOL printLines = NO;
 
     if (url == nil)
     {
@@ -178,10 +280,17 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
         return NO;
     }
 
-    if (opts != NULL && opts->printPageNum == YES)
+    if (opts != NULL)
     {
-        printPageNum = YES;
-        fileName = [url lastPathComponent];
+        if (opts->printPageNum == YES)
+        {
+            printLines = YES;
+            fileName = [url lastPathComponent];
+        }
+        if (opts->regex != NULL)
+        {
+            printLines = YES;
+        }
     }
 
     pdfDoc = [[PDFDocument alloc] initWithURL: url];
@@ -220,9 +329,9 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
                 to each line.
             */
 
-            if (printPageNum)
+            if (printLines)
             {
-                if (printPDFPage(pageText, i+1, fileName) == YES)
+                if (printPDFPage(pageText, i+1, fileName, opts) == YES)
                 {
                     continue;
                 }
@@ -268,6 +377,8 @@ int main(int argc, char * const argv[])
     {
 
     opts.printPageNum = NO;
+    opts.ignoreCase = NO;
+    opts.regex = NULL;
 
     while ((ch = getopt(argc, argv, gPgmOpts)) != -1)
     {
@@ -281,6 +392,20 @@ int main(int argc, char * const argv[])
                 break;
             case gPgmOptPageNum:
                 opts.printPageNum = YES;
+                break;
+            case gPgmOptIgnoreCase:
+                opts.ignoreCase = YES;
+                break;
+            case gPgmOptRegex:
+                if (optarg[0] == '\0')
+                {
+                    fprintf(stderr,"Error: No expression specified\n");
+                    err++;
+                }
+                else
+                {
+                    opts.regex = optarg;
+                }
                 break;
             default:
                 printError("Unknown option: '%c'\n", ch);

@@ -1,7 +1,7 @@
 README
 ------
 
-pdfview v.0.2.1
+pdfview v.0.3.0
 
 Homepage:
 
@@ -22,7 +22,25 @@ About:
 
 Usage:
 
-    pdfview [files]
+    Generally:
+
+        pdfview [files]
+
+    On MacOSX:
+
+        pdfview [-q] [-n] [-e expression [-i]] [files]
+
+        If -q is specified, no error or information messages are printed.
+
+        If -n is specified, the filename and page number are printed for
+        each line.
+
+        If -e is specified, only lines matching the specified expression
+        are printed.
+
+        If -i is specified, then expression matching will be performed on
+        a case insensitive basis.  If an expression is not specified, this
+        option is ignored.
 
 Build (MacOSX only):
 
@@ -65,6 +83,7 @@ Install:
 
 History:
 
+    v.0.3.0  Add support for regex matching to the MacOSX version
     v.0.2.1  Add page numbering support to MacOSX version
     v.0.2.0  Add PDFKit based implementation for MacOSX
     v.0.1.3  Fixes based on shellcheck
@@ -78,6 +97,10 @@ Platforms:
     pdfview has been tested on MacOSX (11.x).  pdfview.sh has
     been tested on FreeBSD (13.0), OpenBSD (7.0), and Debian (11.x).
     It should work on other systems that have pdftotext installed.
+
+Notes:
+
+    On MacOSX, regex matching requires MacOSX 10.7 or newer.
 
 References:
 
