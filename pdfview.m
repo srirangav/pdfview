@@ -8,6 +8,7 @@
     v. 0.1.2 (07/13/2022) - move page numbering support to a separate
                             function
     v. 0.1.3 (07/21/2022) - add expression matching support
+    v. 0.1.4 (07/24/2022) - add support for printing counts of matches
 
     Copyright (c) 2022 Sriranga R. Veeraraghavan <ranga@calalum.org>
 
@@ -40,7 +41,7 @@
 
 /* globals */
 
-static BOOL       gQuiet    = NO;
+static BOOL gQuiet = NO;
 
 /* constants */
 
@@ -54,19 +55,26 @@ static const char *gPgmName = "pdfview";
         -q - quiet mode (no errors / info messages)
         -n - print filename and page number
         -e - print lines that match the specified expression
-        -i - when looking for matching lines, ignore case
+        -c - if an expression is specified, print the total matches
+             instead of each matching line
+        -p - if an expression is specified, print the total matches
+             per page
+        -i - if an expression is specified, when looking for matches,
+             ignore case
 */
 
 enum
 {
+    gPgmOptCount      = 'c',
     gPgmOptHelp       = 'h',
     gPgmOptRegex      = 'e',
     gPgmOptIgnoreCase = 'i',
-    gPgmOptQuiet      = 'q',
     gPgmOptPageNum    = 'n',
+    gPgmOptPageCount  = 'p',
+    gPgmOptQuiet      = 'q',
 };
 
-static const char *gPgmOpts = "hqnie:";
+static const char *gPgmOpts = "chqnipe:";
 
 /* options */
 
@@ -74,7 +82,10 @@ typedef struct
 {
     BOOL printPageNum;
     BOOL ignoreCase;
+    BOOL countOnly;
+    BOOL printPageCounts;
     const char *regex;
+    NSUInteger totalMatches;
 } pdfview_opts_t;
 
 /* prototypes */
@@ -94,11 +105,13 @@ static void printUsage(void);
 static void printUsage(void)
 {
     fprintf(stderr,
-            "Usage: %s [-%c] [-%c] [-%c [expression] -%c] [files]\n",
+            "Usage: %s [-%c] [-%c] [-%c [expression] -%c -%c -%c] [files]\n",
             gPgmName,
             gPgmOptQuiet,
             gPgmOptPageNum,
             gPgmOptRegex,
+            gPgmOptCount,
+            gPgmOptPageCount,
             gPgmOptIgnoreCase);
 }
 
@@ -128,8 +141,10 @@ static BOOL printPDFPage(NSString *pageText,
 {
     NSString *line = nil;
     NSMutableArray *lines = nil;
-    NSUInteger numLines = 0, i = 0;
+    NSUInteger numLines = 0, i = 0, matchesInPage = 0;
     BOOL printPageNum = NO;
+    BOOL printCountOnly = NO;
+    BOOL printPageCount = NO;
 
     if (pageText == nil || pageNum < 1)
     {
@@ -149,9 +164,20 @@ static BOOL printPDFPage(NSString *pageText,
         return NO;
     }
 
-    if (opts != NULL && opts->printPageNum == YES)
+    if (opts != NULL)
     {
-        printPageNum = YES;
+        if (opts->printPageNum == YES)
+        {
+            printPageNum = YES;
+        }
+        if (opts->countOnly == YES)
+        {
+            printCountOnly = YES;
+        }
+        if (opts->printPageCounts == YES)
+        {
+            printPageCount = YES;
+        }
     }
 
     /*
@@ -204,6 +230,21 @@ static BOOL printPDFPage(NSString *pageText,
                                            options: 0
                                              range: NSMakeRange(0, [line length])];
 
+                if (printPageCount == YES)
+                {
+                    matchesInPage += numMatches;
+                    if (printCountOnly == NO)
+                    {
+                        continue;
+                    }
+                }
+
+                if (printCountOnly == YES)
+                {
+                    opts->totalMatches += numMatches;
+                    continue;
+                }
+
                 /* no matches, skip this line */
 
                 if (numMatches <= 0)
@@ -214,7 +255,7 @@ static BOOL printPDFPage(NSString *pageText,
 
             /* print the filename and page number, if requested */
 
-            if (printPageNum)
+            if (printPageNum == YES)
             {
                 if (fileName != nil)
                 {
@@ -231,6 +272,18 @@ static BOOL printPDFPage(NSString *pageText,
             fprintf(stdout,
                     "%s\n",
                     [line cStringUsingEncoding: NSUTF8StringEncoding]);
+        }
+
+        if (printPageCount == YES && regex != nil)
+        {
+            if (fileName != nil)
+            {
+                fprintf(stdout,
+                        "%s:",
+                        [fileName cStringUsingEncoding: NSUTF8StringEncoding]);
+            }
+
+            fprintf(stdout, "%ld:%ld\n", pageNum, matchesInPage);
         }
     }
     else
@@ -273,6 +326,7 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
     NSUInteger pdfPages = 0, i = 0;
     NSString *pageText = nil, *fileName = nil;
     BOOL printLines = NO;
+    BOOL printCountOnly = NO;
 
     if (url == nil)
     {
@@ -290,6 +344,10 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
         if (opts->regex != NULL)
         {
             printLines = YES;
+            if (opts->countOnly)
+            {
+                printCountOnly = YES;
+            }
         }
     }
 
@@ -351,6 +409,17 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
         }
     }
 
+    if (printCountOnly == YES)
+    {
+        if (fileName != nil)
+        {
+            fprintf(stdout,
+                    "%s:",
+                    [fileName cStringUsingEncoding: NSUTF8StringEncoding]);
+        }
+        fprintf(stdout, "%ld\n", opts->totalMatches);
+    }
+
     return YES;
 }
 
@@ -378,7 +447,10 @@ int main(int argc, char * const argv[])
 
     opts.printPageNum = NO;
     opts.ignoreCase = NO;
+    opts.countOnly = NO;
+    opts.printPageCounts = NO;
     opts.regex = NULL;
+    opts.totalMatches = 0;
 
     while ((ch = getopt(argc, argv, gPgmOpts)) != -1)
     {
@@ -395,6 +467,12 @@ int main(int argc, char * const argv[])
                 break;
             case gPgmOptIgnoreCase:
                 opts.ignoreCase = YES;
+                break;
+            case gPgmOptCount:
+                opts.countOnly = YES;
+                break;
+            case gPgmOptPageCount:
+                opts.printPageCounts = YES;
                 break;
             case gPgmOptRegex:
                 if (optarg[0] == '\0')

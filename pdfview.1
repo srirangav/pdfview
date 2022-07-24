@@ -2,17 +2,26 @@
 .SH NAME
 pdfview \- a simple utility for viewing the text in PDFs
 .SH SYNOPSIS
-pdfview [\-q] [\-n] [\-e expression [\-i]] [files]
+pdfview [\-q] [\-n] [\-e expression [\-i] [\-c] [\-p]] [files]
 .SH DESCRIPTION
 pdfview is a simple utility for viewing the text in a PDF.
 .TP
 .B \-e expression
-Enables expression matching - only lines matching the specified 
+Enables expression matching - only lines matching the specified
 expression will be printed.
 .TP
 .B \-i
 Enables case insensitive matching.  If an expression is not
 specified, this option is ignored.
+.TP
+.B \-c
+Prints the total number of matches, instead of each matching
+line.  If an expression is not specified, this option is
+ignored.
+.TP
+.B \-p
+Prints the total number of matches on each page.  If an
+expression is not specified, this option is ignored.
 .TP
 .B \-q
 Enables quiet mode \- error messages will not be printed.
@@ -21,7 +30,7 @@ Enables quiet mode \- error messages will not be printed.
 Enables page numbering \- each line of a given pdf will be
 prefixed with the filename and page number.
 .SH PLATFORMS
-pdfview has been tested on MacOSX 11.x (BigSur) on M1.  It 
+pdfview has been tested on MacOSX 11.x (BigSur) on M1.  It
 should work on MacOSX 10.4 (Tiger) and newer.  Expression
 matching should be available on MacOSX 10.7 (Lion) and newer.
 .SH HISTORY

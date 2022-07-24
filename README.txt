@@ -1,7 +1,7 @@
 README
 ------
 
-pdfview v.0.3.0
+pdfview v.0.3.1
 
 Homepage:
 
@@ -28,7 +28,7 @@ Usage:
 
     On MacOSX:
 
-        pdfview [-q] [-n] [-e expression [-i]] [files]
+        pdfview [-q] [-n] [-e expression [-i] [-c] [-p]] [files]
 
         If -q is specified, no error or information messages are printed.
 
@@ -41,6 +41,15 @@ Usage:
         If -i is specified, then expression matching will be performed on
         a case insensitive basis.  If an expression is not specified, this
         option is ignored.
+
+        If -c is specified, then, instead of printing matching lines, the
+        total number of matches for the specified expression is printed.
+        If an expression is not specified, this option is ignored.
+
+        if -p is specified, then, instead of printing matching lines, the
+        total number of matches for the specified expression on each page
+        is printed.  If an expression is not specified, this option is
+        ignored.
 
 Build (MacOSX only):
 
@@ -83,6 +92,8 @@ Install:
 
 History:
 
+    v.0.3.1  Add support for getting counts of matches to the
+             MacOSX version
     v.0.3.0  Add support for regex matching to the MacOSX version
     v.0.2.1  Add page numbering support to MacOSX version
     v.0.2.0  Add PDFKit based implementation for MacOSX
