@@ -11,6 +11,8 @@
     v. 0.1.4 (07/24/2022) - add support for printing counts of matches
     v. 0.1.5 (07/25/2022) - allow searching to stop once the first
                             match is found
+    v. 0.1.6 (07/25/2022) - add support for printing counts only on
+                            matching pages
 
     Copyright (c) 2022 Sriranga R. Veeraraghavan <ranga@calalum.org>
 
@@ -61,6 +63,8 @@ static const char *gPgmName = "pdfview";
              instead of each matching line
         -p - if an expression is specified, print the total matches
              per page
+        -P - if an expression is specified, print the total matches
+             per page only on pages where there are matches
         -i - if an expression is specified, when looking for matches,
              ignore case
         -l - if an expression is specified, stop searching once a
@@ -77,9 +81,10 @@ enum
     gPgmOptPageNum    = 'n',
     gPgmOptPageCount  = 'p',
     gPgmOptQuiet      = 'q',
+    gPgmOptPageCountMatchingOnly = 'P',
 };
 
-static const char *gPgmOpts = "chilnpqe:";
+static const char *gPgmOpts = "chilnpPqe:";
 
 /* options */
 
@@ -89,6 +94,7 @@ typedef struct
     BOOL ignoreCase;
     BOOL countOnly;
     BOOL printPageCounts;
+    BOOL pageCountsForMatchingPagesOnly;
     BOOL listOnly;
     const char *regex;
     NSUInteger totalMatches;
@@ -111,13 +117,14 @@ static void printUsage(void);
 static void printUsage(void)
 {
     fprintf(stderr,
-            "Usage: %s [-%c] [-%c] [-%c [expression] -%c -%c -%c -%c] [files]\n",
+            "Usage: %s [-%c] [-%c] [-%c [expression] -%c [-%c|-%c] -%c -%c] [files]\n",
             gPgmName,
             gPgmOptQuiet,
             gPgmOptPageNum,
             gPgmOptRegex,
             gPgmOptCount,
             gPgmOptPageCount,
+            gPgmOptPageCountMatchingOnly,
             gPgmOptListOnly,
             gPgmOptIgnoreCase);
 }
@@ -151,7 +158,7 @@ static BOOL printPDFPage(NSString *pageText,
     NSUInteger numLines = 0, i = 0, matchesInPage = 0;
     BOOL printPageNum = NO;
     BOOL printCountOnly = NO;
-    BOOL printPageCount = NO;
+    BOOL printPageCount = NO, matchingPagesOnly = NO;
     BOOL stopIfMatchFound = NO;
 
     if (pageText == nil || pageNum < 1)
@@ -185,6 +192,11 @@ static BOOL printPDFPage(NSString *pageText,
         if (opts->printPageCounts == YES)
         {
             printPageCount = YES;
+        }
+        if (opts->pageCountsForMatchingPagesOnly == YES)
+        {
+            printPageCount = YES;
+            matchingPagesOnly = YES;
         }
         if (opts->listOnly == YES)
         {
@@ -299,6 +311,12 @@ static BOOL printPDFPage(NSString *pageText,
             regex != nil &&
             stopIfMatchFound != YES)
         {
+
+            if (matchingPagesOnly && matchesInPage <= 0)
+            {
+                return YES;
+            }
+
             if (fileName != nil)
             {
                 fprintf(stdout,
@@ -508,6 +526,7 @@ int main(int argc, char * const argv[])
     opts.ignoreCase = NO;
     opts.countOnly = NO;
     opts.printPageCounts = NO;
+    opts.pageCountsForMatchingPagesOnly = NO;
     opts.listOnly = NO;
     opts.regex = NULL;
     opts.totalMatches = 0;
@@ -536,6 +555,10 @@ int main(int argc, char * const argv[])
                 break;
             case gPgmOptPageCount:
                 opts.printPageCounts = YES;
+                break;
+            case gPgmOptPageCountMatchingOnly:
+                opts.printPageCounts = YES;
+                opts.pageCountsForMatchingPagesOnly = YES;
                 break;
             case gPgmOptRegex:
                 if (optarg[0] == '\0')

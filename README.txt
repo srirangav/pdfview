@@ -1,7 +1,7 @@
 README
 ------
 
-pdfview v.0.3.2
+pdfview v.0.3.3
 
 Homepage:
 
@@ -9,10 +9,10 @@ Homepage:
 
 About:
 
-    pdfview is a command line program that displays any available text
-    in a PDF.  On MacOSX, pdfview uses PDFKit (which is available on
-    MacOSX 10.4 or newer).  On Linux/*bsd, pdfview is a shell script
-    that relies on pdftotext from either xpdf or poppler:
+    pdfview is a command line program that displays any available
+    text in a PDF.  On MacOSX, pdfview uses PDFKit (which is available
+    on MacOSX 10.4 or newer).  On Linux/*bsd, pdfview is a shell
+    script that relies on pdftotext from either xpdf or poppler:
 
         https://www.xpdfreader.com/pdftotext-man.html
         https://github.com/freedesktop/poppler
@@ -39,9 +39,9 @@ Usage:
         If -e is specified, only lines matching the specified
         expression are printed.
 
-        If -i is specified, then expression matching will be performed
-        on a case insensitive basis.  If an expression is not specified,
-        this option is ignored.
+        If -i is specified, then expression matching will be
+        performed on a case insensitive basis.  If an expression is
+        not specified, this option is ignored.
 
         If -c is specified, then, instead of printing matching lines,
         the total number of matches for the specified expression is
@@ -50,12 +50,17 @@ Usage:
 
         If -p is specified, then, instead of printing matching lines,
         the total number of matches for the specified expression on
-        each page is printed.  If an expression is not specified, this
-        option is ignored.
+        each page is printed.  If an expression is not specified,
+        this option is ignored.
 
-        If -l is specified, as soon as the first match, searching stops
-        and the filename containing the match is printed.  If an
+        If -P is specified, then, instead of printing matching lines,
+        the total number of matches for the specified expression on
+        each page with more than one match is printed.  If an
         expression is not specified, this option is ignored.
+
+        If -l is specified, as soon as the first match, searching
+        stops and the filename containing the match is printed.  If
+        an expression is not specified, this option is ignored.
 
 Build (MacOSX only):
 
@@ -70,9 +75,9 @@ Install:
         $ make
         $ make install
 
-        By default, pdfview is installed in /usr/local/bin.  To install
-        it in a different location, the alternate installation prefix
-        can be supplied to configure:
+        By default, pdfview is installed in /usr/local/bin.  To
+        install it in a different location, the alternate installation
+        prefix can be supplied to configure:
 
             $ ./configure --prefix="<prefix>"
 
@@ -98,8 +103,11 @@ Install:
 
 History:
 
-    v.0.3.2  Add -l option to the MacOSX version so that pdfview will
-             stop searching as soon as the first match is found
+    v.0.3.3  Add -P option to the MacOSX version to print counts
+             only on pages with matches
+    v.0.3.2  Add -l option to the MacOSX version so that pdfview
+             will stop searching as soon as the first match is
+             found
     v.0.3.1  Add support for getting counts of matches to the
              MacOSX version
     v.0.3.0  Add support for regex matching to the MacOSX version
