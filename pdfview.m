@@ -9,6 +9,8 @@
                             function
     v. 0.1.3 (07/21/2022) - add expression matching support
     v. 0.1.4 (07/24/2022) - add support for printing counts of matches
+    v. 0.1.5 (07/25/2022) - allow searching to stop once the first
+                            match is found
 
     Copyright (c) 2022 Sriranga R. Veeraraghavan <ranga@calalum.org>
 
@@ -61,6 +63,8 @@ static const char *gPgmName = "pdfview";
              per page
         -i - if an expression is specified, when looking for matches,
              ignore case
+        -l - if an expression is specified, stop searching once a
+             match is found and just print out the file name
 */
 
 enum
@@ -69,12 +73,13 @@ enum
     gPgmOptHelp       = 'h',
     gPgmOptRegex      = 'e',
     gPgmOptIgnoreCase = 'i',
+    gPgmOptListOnly   = 'l',
     gPgmOptPageNum    = 'n',
     gPgmOptPageCount  = 'p',
     gPgmOptQuiet      = 'q',
 };
 
-static const char *gPgmOpts = "chqnipe:";
+static const char *gPgmOpts = "chilnpqe:";
 
 /* options */
 
@@ -84,6 +89,7 @@ typedef struct
     BOOL ignoreCase;
     BOOL countOnly;
     BOOL printPageCounts;
+    BOOL listOnly;
     const char *regex;
     NSUInteger totalMatches;
 } pdfview_opts_t;
@@ -105,13 +111,14 @@ static void printUsage(void);
 static void printUsage(void)
 {
     fprintf(stderr,
-            "Usage: %s [-%c] [-%c] [-%c [expression] -%c -%c -%c] [files]\n",
+            "Usage: %s [-%c] [-%c] [-%c [expression] -%c -%c -%c -%c] [files]\n",
             gPgmName,
             gPgmOptQuiet,
             gPgmOptPageNum,
             gPgmOptRegex,
             gPgmOptCount,
             gPgmOptPageCount,
+            gPgmOptListOnly,
             gPgmOptIgnoreCase);
 }
 
@@ -145,6 +152,7 @@ static BOOL printPDFPage(NSString *pageText,
     BOOL printPageNum = NO;
     BOOL printCountOnly = NO;
     BOOL printPageCount = NO;
+    BOOL stopIfMatchFound = NO;
 
     if (pageText == nil || pageNum < 1)
     {
@@ -177,6 +185,10 @@ static BOOL printPDFPage(NSString *pageText,
         if (opts->printPageCounts == YES)
         {
             printPageCount = YES;
+        }
+        if (opts->listOnly == YES)
+        {
+            stopIfMatchFound = YES;
         }
     }
 
@@ -230,6 +242,15 @@ static BOOL printPDFPage(NSString *pageText,
                                            options: 0
                                              range: NSMakeRange(0, [line length])];
 
+                if (stopIfMatchFound == YES)
+                {
+                    if (numMatches > 0)
+                    {
+                        opts->totalMatches += numMatches;
+                        break;
+                    }
+                }
+
                 if (printPageCount == YES)
                 {
                     matchesInPage += numMatches;
@@ -274,7 +295,9 @@ static BOOL printPDFPage(NSString *pageText,
                     [line cStringUsingEncoding: NSUTF8StringEncoding]);
         }
 
-        if (printPageCount == YES && regex != nil)
+        if (printPageCount == YES &&
+            regex != nil &&
+            stopIfMatchFound != YES)
         {
             if (fileName != nil)
             {
@@ -327,6 +350,7 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
     NSString *pageText = nil, *fileName = nil;
     BOOL printLines = NO;
     BOOL printCountOnly = NO;
+    BOOL stopIfMatchFound = NO;
 
     if (url == nil)
     {
@@ -341,12 +365,24 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
             printLines = YES;
             fileName = [url lastPathComponent];
         }
+
         if (opts->regex != NULL)
         {
             printLines = YES;
-            if (opts->countOnly)
+
+            if (fileName == nil)
+            {
+                fileName = [url lastPathComponent];
+            }
+
+            if (opts->countOnly == YES)
             {
                 printCountOnly = YES;
+            }
+
+            if (opts->listOnly == YES)
+            {
+                stopIfMatchFound = YES;
             }
         }
     }
@@ -391,7 +427,18 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
             {
                 if (printPDFPage(pageText, i+1, fileName, opts) == YES)
                 {
-                    continue;
+                    if (stopIfMatchFound == YES)
+                    {
+                        if (opts->totalMatches <= 0)
+                        {
+                            continue;
+                        }
+                        break;
+                    }
+                    else
+                    {
+                        continue;
+                    }
                 }
 
                 if (fileName != nil)
@@ -400,6 +447,7 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
                             "%s:",
                             [fileName cStringUsingEncoding: NSUTF8StringEncoding]);
                 }
+
                 fprintf(stdout, "%ld:", i+1);
             }
 
@@ -407,6 +455,17 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
                     "%s\n",
                     [pageText cStringUsingEncoding: NSUTF8StringEncoding]);
         }
+    }
+
+    if (stopIfMatchFound == YES && opts->totalMatches > 0)
+    {
+        if (fileName != nil)
+        {
+            fprintf(stdout,
+                    "%s\n",
+                    [fileName cStringUsingEncoding: NSUTF8StringEncoding]);
+        }
+        return YES;
     }
 
     if (printCountOnly == YES)
@@ -449,6 +508,7 @@ int main(int argc, char * const argv[])
     opts.ignoreCase = NO;
     opts.countOnly = NO;
     opts.printPageCounts = NO;
+    opts.listOnly = NO;
     opts.regex = NULL;
     opts.totalMatches = 0;
 
@@ -464,6 +524,9 @@ int main(int argc, char * const argv[])
                 break;
             case gPgmOptPageNum:
                 opts.printPageNum = YES;
+                break;
+            case gPgmOptListOnly:
+                opts.listOnly = YES;
                 break;
             case gPgmOptIgnoreCase:
                 opts.ignoreCase = YES;
@@ -594,6 +657,10 @@ int main(int argc, char * const argv[])
         {
             err++;
         }
+
+        /* reset the total number of matches */
+
+        opts.totalMatches = 0;
     }
 
     return err;

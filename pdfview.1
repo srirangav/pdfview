@@ -2,7 +2,7 @@
 .SH NAME
 pdfview \- a simple utility for viewing the text in PDFs
 .SH SYNOPSIS
-pdfview [\-q] [\-n] [\-e expression [\-i] [\-c] [\-p]] [files]
+pdfview [\-q] [\-n] [\-e expression [\-i] [\-c] [\-p] [\-l]] [files]
 .SH DESCRIPTION
 pdfview is a simple utility for viewing the text in a PDF.
 .TP
@@ -22,6 +22,11 @@ ignored.
 .B \-p
 Prints the total number of matches on each page.  If an
 expression is not specified, this option is ignored.
+.TP
+.B \-l
+As soon as a match is found, prints the filename and stops
+searching.  If an expression is not specified, this option
+is ignored.
 .TP
 .B \-q
 Enables quiet mode \- error messages will not be printed.

@@ -1,7 +1,7 @@
 README
 ------
 
-pdfview v.0.3.1
+pdfview v.0.3.2
 
 Homepage:
 
@@ -28,28 +28,34 @@ Usage:
 
     On MacOSX:
 
-        pdfview [-q] [-n] [-e expression [-i] [-c] [-p]] [files]
+        pdfview [-q] [-n] [-e expression [-i] [-c] [-p] [-l]] [files]
 
-        If -q is specified, no error or information messages are printed.
+        If -q is specified, no error or information messages are
+        printed.
 
-        If -n is specified, the filename and page number are printed for
-        each line.
+        If -n is specified, the filename and page number are printed
+        for each line.
 
-        If -e is specified, only lines matching the specified expression
-        are printed.
+        If -e is specified, only lines matching the specified
+        expression are printed.
 
-        If -i is specified, then expression matching will be performed on
-        a case insensitive basis.  If an expression is not specified, this
+        If -i is specified, then expression matching will be performed
+        on a case insensitive basis.  If an expression is not specified,
+        this option is ignored.
+
+        If -c is specified, then, instead of printing matching lines,
+        the total number of matches for the specified expression is
+        printed. If an expression is not specified, this option is
+        ignored.
+
+        If -p is specified, then, instead of printing matching lines,
+        the total number of matches for the specified expression on
+        each page is printed.  If an expression is not specified, this
         option is ignored.
 
-        If -c is specified, then, instead of printing matching lines, the
-        total number of matches for the specified expression is printed.
-        If an expression is not specified, this option is ignored.
-
-        if -p is specified, then, instead of printing matching lines, the
-        total number of matches for the specified expression on each page
-        is printed.  If an expression is not specified, this option is
-        ignored.
+        If -l is specified, as soon as the first match, searching stops
+        and the filename containing the match is printed.  If an
+        expression is not specified, this option is ignored.
 
 Build (MacOSX only):
 
@@ -92,6 +98,8 @@ Install:
 
 History:
 
+    v.0.3.2  Add -l option to the MacOSX version so that pdfview will
+             stop searching as soon as the first match is found
     v.0.3.1  Add support for getting counts of matches to the
              MacOSX version
     v.0.3.0  Add support for regex matching to the MacOSX version
