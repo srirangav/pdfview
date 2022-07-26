@@ -1,7 +1,7 @@
 README
 ------
 
-pdfview v.0.3.3
+pdfview v.0.3.4
 
 Homepage:
 
@@ -36,6 +36,12 @@ Usage:
 
         If -n is specified, the filename and page number are
         printed for each line.
+
+        if -d is specified, the text is dehyphenated
+
+        if -r is specified, no text replacements are performed
+        (except dehyphenation, if requested) and the raw text
+        is displayed
 
         If -e [expression] is specified, only lines matching the
         specified expression are printed.
@@ -110,6 +116,9 @@ Install:
 
 History:
 
+    v.0.3.4  In the MacOSX version, add -d option to dehyphenate
+             text and -r option to print the raw text without any
+             text replacements
     v.0.3.3  Add -P option to the MacOSX version to print counts
              only on pages with matches and -L option to print
              filenames only when there are no matches in the file

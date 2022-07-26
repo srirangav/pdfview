@@ -14,6 +14,8 @@
     v. 0.1.6 (07/25/2022) - add support for printing counts only on
                             matching pages and for printing filenames
                             only when no matches are found in a file
+    v. 0.1.7 (07/26/2022) - add support for dehyphenation and removing
+                            smart quotes, long hypens, etc.
 
     Copyright (c) 2022 Sriranga R. Veeraraghavan <ranga@calalum.org>
 
@@ -57,8 +59,11 @@ static const char *gPgmName = "pdfview";
     command line options:
 
         -h - help
-        -q - quiet mode (no errors / info messages)
+        -d - dehyphenate
         -n - print filename and page number
+        -q - quiet mode (no errors / info messages)
+        -r - raw mode, do not make any changes to the text, other
+             than dehyphenating (if requested)
         -e - print lines that match the specified expression
         -c - if an expression is specified, print the total matches
              instead of each matching line
@@ -76,19 +81,21 @@ static const char *gPgmName = "pdfview";
 
 enum
 {
-    gPgmOptCount      = 'c',
-    gPgmOptHelp       = 'h',
-    gPgmOptRegex      = 'e',
-    gPgmOptIgnoreCase = 'i',
-    gPgmOptListOnly   = 'l',
-    gPgmOptPageNum    = 'n',
-    gPgmOptPageCount  = 'p',
-    gPgmOptQuiet      = 'q',
+    gPgmOptCount       = 'c',
+    gPgmOptDehyphenate = 'd',
+    gPgmOptHelp        = 'h',
+    gPgmOptRegex       = 'e',
+    gPgmOptIgnoreCase  = 'i',
+    gPgmOptListOnly    = 'l',
+    gPgmOptPageNum     = 'n',
+    gPgmOptPageCount   = 'p',
+    gPgmOptQuiet       = 'q',
+    gPgmOptRaw         = 'r',
     gPgmOptListOnlyWhenNoMatches = 'L',
     gPgmOptPageCountMatchingOnly = 'P',
 };
 
-static const char *gPgmOpts = "chilLnpPqe:";
+static const char *gPgmOpts = "cdhilLnpPqre:";
 
 /* options */
 
@@ -101,6 +108,8 @@ typedef struct
     BOOL pageCountsForMatchingPagesOnly;
     BOOL listOnly;
     BOOL listOnlyWhenNoMatches;
+    BOOL dehyphenate;
+    BOOL useRawText;
     const char *regex;
     NSUInteger totalMatches;
 } pdfview_opts_t;
@@ -122,10 +131,12 @@ static void printUsage(void);
 static void printUsage(void)
 {
     fprintf(stderr,
-            "Usage: %s [-%c] [-%c] [-%c [expression] -%c [-%c|-%c] [-%c|-%c] -%c] [files]\n",
+            "Usage: %s [-%c] [-%c] [-%c] [-%c] [-%c [expression] -%c [-%c|-%c] [-%c|-%c] -%c] [files]\n",
             gPgmName,
             gPgmOptQuiet,
             gPgmOptPageNum,
+            gPgmOptDehyphenate,
+            gPgmOptRaw,
             gPgmOptRegex,
             gPgmOptCount,
             gPgmOptPageCount,
@@ -371,10 +382,13 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
     PDFDocument *pdfDoc = nil;
     PDFPage *pdfPage = nil;
     NSUInteger pdfPages = 0, i = 0;
-    NSString *pageText = nil, *fileName = nil;
+    NSString *pageText = nil, *tmpPageText = nil;
+    NSString *fileName = nil;
     BOOL printLines = NO;
     BOOL printCountOnly = NO;
     BOOL stopIfMatchFound = NO;
+    BOOL dehyphenate = NO;
+    BOOL useRawText = NO;
 
     if (url == nil)
     {
@@ -390,6 +404,9 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
             fileName = [url lastPathComponent];
         }
 
+        dehyphenate = opts->dehyphenate;
+        useRawText = opts->useRawText;
+
         if (opts->regex != NULL)
         {
             printLines = YES;
@@ -399,10 +416,7 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
                 fileName = [url lastPathComponent];
             }
 
-            if (opts->countOnly == YES)
-            {
-                printCountOnly = YES;
-            }
+            printCountOnly = opts->countOnly;
 
             if (opts->listOnly == YES)
             {
@@ -435,8 +449,82 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
             continue;
         }
 
-        pageText = [[pdfPage string] stringByTrimmingCharactersInSet:
+        tmpPageText = [pdfPage string];
+        if (tmpPageText == nil)
+        {
+            continue;
+        }
+
+        pageText = [tmpPageText stringByTrimmingCharactersInSet:
                     [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        if (pageText == nil || [pageText length] <= 0)
+        {
+            continue;
+        }
+
+        if (dehyphenate == YES)
+        {
+            tmpPageText =
+                [pageText stringByReplacingOccurrencesOfString: @"- "
+                                                    withString: @""];
+            if (tmpPageText == nil || [tmpPageText length] <= 0)
+            {
+                continue;
+            }
+
+            pageText =
+                [tmpPageText stringByReplacingOccurrencesOfString: @"-\n"
+                                                       withString: @""];
+            tmpPageText = pageText;
+        }
+        else
+        {
+            tmpPageText =
+                [pageText stringByReplacingOccurrencesOfString: @"- "
+                                                    withString: @"-\n"];
+        }
+
+        if (tmpPageText == nil || [tmpPageText length] <= 0)
+        {
+            continue;
+        }
+
+        if (useRawText == YES)
+        {
+            pageText = tmpPageText;
+        }
+        else
+        {
+            pageText =
+                [tmpPageText stringByReplacingOccurrencesOfString: @"“"
+                                                       withString: @"\""];
+            if (pageText == nil || [pageText length] <= 0)
+            {
+                continue;
+            }
+
+            tmpPageText =
+                [pageText stringByReplacingOccurrencesOfString: @"”"
+                                                    withString: @"\""];
+            if (tmpPageText == nil || [tmpPageText length] <= 0)
+            {
+                continue;
+            }
+
+            pageText =
+                [tmpPageText stringByReplacingOccurrencesOfString: @"’"
+                                                       withString: @"'"];
+            if (pageText == nil || [pageText length] <= 0)
+            {
+                continue;
+            }
+
+            tmpPageText =
+                [pageText stringByReplacingOccurrencesOfString: @"–"
+                                                    withString: @"-"];
+            pageText = tmpPageText;
+        }
+
         if (pageText != nil && [pageText length] > 0)
         {
 
@@ -549,6 +637,8 @@ int main(int argc, char * const argv[])
     opts.pageCountsForMatchingPagesOnly = NO;
     opts.listOnly = NO;
     opts.listOnlyWhenNoMatches = NO;
+    opts.dehyphenate = NO;
+    opts.useRawText = NO;
     opts.regex = NULL;
     opts.totalMatches = 0;
 
@@ -564,6 +654,12 @@ int main(int argc, char * const argv[])
                 break;
             case gPgmOptPageNum:
                 opts.printPageNum = YES;
+                break;
+            case gPgmOptDehyphenate:
+                opts.dehyphenate = YES;
+                break;
+            case gPgmOptRaw:
+                opts.useRawText = YES;
                 break;
             case gPgmOptListOnly:
                 opts.listOnly = YES;
@@ -597,7 +693,10 @@ int main(int argc, char * const argv[])
                 }
                 break;
             default:
-                printError("Unknown option: '%c'\n", ch);
+                if (ch != '?')
+                {
+                    printError("Unknown option: '%c'\n", ch);
+                }
                 err++;
                 break;
         }
@@ -714,4 +813,3 @@ int main(int argc, char * const argv[])
     return err;
     }
 }
-

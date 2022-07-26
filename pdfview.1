@@ -2,9 +2,12 @@
 .SH NAME
 pdfview \- a simple utility for viewing the text in PDFs
 .SH SYNOPSIS
-pdfview [\-q] [\-n] [\-e expression [\-i] [\-c] [\-p|\-P] [\-l|\-L]] [files]
+pdfview [options] [files]
 .SH DESCRIPTION
 pdfview is a simple utility for viewing the text in a PDF.
+.TP
+.B \-d
+dehyphenates the text
 .TP
 .B \-e expression
 Enables expression matching - only lines matching the specified
@@ -19,15 +22,6 @@ Prints the total number of matches, instead of each matching
 line.  If an expression is not specified, this option is
 ignored.
 .TP
-.B \-p
-Prints the total number of matches on each page.  If an
-expression is not specified, this option is ignored.
-.TP
-.B \-P
-Prints the total number of matches on each page, but skips
-pages with no matches.  If an expression is not specified,
-this option is ignored.
-.TP
 .B \-l
 As soon as a match is found, prints the filename and stops
 searching.  If an expression is not specified, this option
@@ -37,12 +31,25 @@ is ignored.
 Only print filenames if no matches are found in a file. If
 an expression is not specified, this option is ignored.
 .TP
-.B \-q
-Enables quiet mode \- error messages will not be printed.
-.TP
 .B \-n
 Enables page numbering \- each line of a given pdf will be
 prefixed with the filename and page number.
+.TP
+.B \-p
+Prints the total number of matches on each page.  If an
+expression is not specified, this option is ignored.
+.TP
+.B \-P
+Prints the total number of matches on each page, but skips
+pages with no matches.  If an expression is not specified,
+this option is ignored.
+.TP
+.B \-q
+Enables quiet mode \- error messages will not be printed.
+.TP
+.B \-r
+enables raw mode \- no text replacements are performed
+(except dehyphenation, if requested)
 .SH PLATFORMS
 pdfview has been tested on MacOSX 11.x (BigSur) on M1.  It
 should work on MacOSX 10.4 (Tiger) and newer.  Expression
