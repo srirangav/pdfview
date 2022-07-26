@@ -62,6 +62,10 @@ Usage:
         stops and the filename containing the match is printed.  If
         an expression is not specified, this option is ignored.
 
+        If -L is specified, the filename is printed only if it does
+        not contain a match is printed.  If an expression is not
+        specified, this option is ignored.
+
 Build (MacOSX only):
 
     $ ./configure
@@ -104,7 +108,8 @@ Install:
 History:
 
     v.0.3.3  Add -P option to the MacOSX version to print counts
-             only on pages with matches
+             only on pages with matches and -L option to print
+             filenames only when there are no matches in the file
     v.0.3.2  Add -l option to the MacOSX version so that pdfview
              will stop searching as soon as the first match is
              found

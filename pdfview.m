@@ -12,7 +12,8 @@
     v. 0.1.5 (07/25/2022) - allow searching to stop once the first
                             match is found
     v. 0.1.6 (07/25/2022) - add support for printing counts only on
-                            matching pages
+                            matching pages and for printing filenames
+                            only when no matches are found in a file
 
     Copyright (c) 2022 Sriranga R. Veeraraghavan <ranga@calalum.org>
 
@@ -69,6 +70,8 @@ static const char *gPgmName = "pdfview";
              ignore case
         -l - if an expression is specified, stop searching once a
              match is found and just print out the file name
+        -L - if an expression is specified, print out the file name
+             only if no matches are found in a file
 */
 
 enum
@@ -81,10 +84,11 @@ enum
     gPgmOptPageNum    = 'n',
     gPgmOptPageCount  = 'p',
     gPgmOptQuiet      = 'q',
+    gPgmOptListOnlyWhenNoMatches = 'L',
     gPgmOptPageCountMatchingOnly = 'P',
 };
 
-static const char *gPgmOpts = "chilnpPqe:";
+static const char *gPgmOpts = "chilLnpPqe:";
 
 /* options */
 
@@ -96,6 +100,7 @@ typedef struct
     BOOL printPageCounts;
     BOOL pageCountsForMatchingPagesOnly;
     BOOL listOnly;
+    BOOL listOnlyWhenNoMatches;
     const char *regex;
     NSUInteger totalMatches;
 } pdfview_opts_t;
@@ -117,7 +122,7 @@ static void printUsage(void);
 static void printUsage(void)
 {
     fprintf(stderr,
-            "Usage: %s [-%c] [-%c] [-%c [expression] -%c [-%c|-%c] -%c -%c] [files]\n",
+            "Usage: %s [-%c] [-%c] [-%c [expression] -%c [-%c|-%c] [-%c|-%c] -%c] [files]\n",
             gPgmName,
             gPgmOptQuiet,
             gPgmOptPageNum,
@@ -126,6 +131,7 @@ static void printUsage(void)
             gPgmOptPageCount,
             gPgmOptPageCountMatchingOnly,
             gPgmOptListOnly,
+            gPgmOptListOnlyWhenNoMatches,
             gPgmOptIgnoreCase);
 }
 
@@ -475,15 +481,29 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
         }
     }
 
-    if (stopIfMatchFound == YES && opts->totalMatches > 0)
+    if (stopIfMatchFound == YES &&
+        opts != NULL &&
+        opts->totalMatches > 0)
     {
-        if (fileName != nil)
+        if (fileName != nil &&
+            opts != NULL &&
+            opts->listOnlyWhenNoMatches == NO)
         {
             fprintf(stdout,
                     "%s\n",
                     [fileName cStringUsingEncoding: NSUTF8StringEncoding]);
         }
         return YES;
+    }
+
+    if (opts != NULL &&
+        opts->listOnlyWhenNoMatches == YES &&
+        opts->totalMatches <= 0 &&
+        fileName != nil)
+    {
+        fprintf(stdout,
+                "%s\n",
+                [fileName cStringUsingEncoding: NSUTF8StringEncoding]);
     }
 
     if (printCountOnly == YES)
@@ -528,6 +548,7 @@ int main(int argc, char * const argv[])
     opts.printPageCounts = NO;
     opts.pageCountsForMatchingPagesOnly = NO;
     opts.listOnly = NO;
+    opts.listOnlyWhenNoMatches = NO;
     opts.regex = NULL;
     opts.totalMatches = 0;
 
@@ -546,6 +567,10 @@ int main(int argc, char * const argv[])
                 break;
             case gPgmOptListOnly:
                 opts.listOnly = YES;
+                break;
+            case gPgmOptListOnlyWhenNoMatches:
+                opts.listOnly = YES;
+                opts.listOnlyWhenNoMatches = YES;
                 break;
             case gPgmOptIgnoreCase:
                 opts.ignoreCase = YES;
