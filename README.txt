@@ -10,15 +10,16 @@ Homepage:
 About:
 
     pdfview is a command line program that displays any available
-    text in a PDF.  On MacOSX, pdfview uses PDFKit (which is available
-    on MacOSX 10.4 or newer).  On Linux/*bsd, pdfview is a shell
-    script that relies on pdftotext from either xpdf or poppler:
+    text in a PDF.  On MacOSX, pdfview uses PDFKit (which is
+    available on MacOSX 10.4 or newer).  On Linux/*bsd, pdfview
+    is a shell script that relies on pdftotext from either xpdf
+    or poppler:
 
         https://www.xpdfreader.com/pdftotext-man.html
         https://github.com/freedesktop/poppler
 
-    On Linux/*bsd, pdfview will wrap text using fmt(1) (first choice)
-    or fold(1), if they are available.
+    On Linux/*bsd, pdfview will wrap text using fmt(1) (first
+    choice) or fold(1), if they are available.
 
 Usage:
 
@@ -28,43 +29,44 @@ Usage:
 
     On MacOSX:
 
-        pdfview [-q] [-n] [-e expression [-i] [-c] [-p] [-l]] [files]
+        pdfview [options] [files]
 
         If -q is specified, no error or information messages are
         printed.
 
-        If -n is specified, the filename and page number are printed
-        for each line.
+        If -n is specified, the filename and page number are
+        printed for each line.
 
-        If -e is specified, only lines matching the specified
-        expression are printed.
+        If -e [expression] is specified, only lines matching the
+        specified expression are printed.
 
         If -i is specified, then expression matching will be
-        performed on a case insensitive basis.  If an expression is
-        not specified, this option is ignored.
+        performed on a case insensitive basis.  If an expression
+        is not specified, this option is ignored.
 
-        If -c is specified, then, instead of printing matching lines,
-        the total number of matches for the specified expression is
-        printed. If an expression is not specified, this option is
-        ignored.
-
-        If -p is specified, then, instead of printing matching lines,
-        the total number of matches for the specified expression on
-        each page is printed.  If an expression is not specified,
+        If -c is specified, then, instead of printing matching
+        lines, the total number of matches for the specified
+        expression is printed. If an expression is not specified,
         this option is ignored.
 
-        If -P is specified, then, instead of printing matching lines,
-        the total number of matches for the specified expression on
-        each page with more than one match is printed.  If an
-        expression is not specified, this option is ignored.
+        If -p is specified, then, instead of printing matching
+        lines, the total number of matches for the specified
+        expression on each page is printed.  If an expression is
+        not specified, this option is ignored.
+
+        If -P is specified, then, instead of printing matching
+        lines, the total number of matches for the specified
+        expression on each page with more than one match is
+        printed.  If an expression is not specified, this option
+        is ignored.
 
         If -l is specified, as soon as the first match, searching
-        stops and the filename containing the match is printed.  If
-        an expression is not specified, this option is ignored.
+        stops and the filename containing the match is printed.
+        If an expression is not specified, this option is ignored.
 
-        If -L is specified, the filename is printed only if it does
-        not contain a match is printed.  If an expression is not
-        specified, this option is ignored.
+        If -L is specified, the filename is printed only if it
+        does not contain a match is printed.  If an expression is
+        not specified, this option is ignored.
 
 Build (MacOSX only):
 
@@ -79,9 +81,9 @@ Install:
         $ make
         $ make install
 
-        By default, pdfview is installed in /usr/local/bin.  To
-        install it in a different location, the alternate installation
-        prefix can be supplied to configure:
+        By default, pdfview is installed in /usr/local/bin. To
+        install it in a different location, the alternate
+        installation prefix can be supplied to configure:
 
             $ ./configure --prefix="<prefix>"
 
@@ -89,12 +91,13 @@ Install:
 
             $ make install PREFIX="<prefix>"
 
-        For example, the following will install pdfview in /opt/local:
+        For example, the following will install pdfview in
+        /opt/local:
 
             $ make PREFIX=/opt/local install
 
-        A DESTDIR can also be specified for staging purposes (with or
-        without an alternate prefix):
+        A DESTDIR can also be specified for staging purposes
+        (with or without an alternate prefix):
 
             $ make DESTDIR="<destdir>" [PREFIX="<prefix>"] install
 
@@ -127,8 +130,9 @@ History:
 Platforms:
 
     pdfview has been tested on MacOSX (11.x).  pdfview.sh has
-    been tested on FreeBSD (13.0), OpenBSD (7.0), and Debian (11.x).
-    It should work on other systems that have pdftotext installed.
+    been tested on FreeBSD (13.0), OpenBSD (7.0), and Debian
+    (11.x).  It should work on other systems that have pdftotext
+    installed.
 
 Notes:
 
