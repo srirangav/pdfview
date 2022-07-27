@@ -1,7 +1,7 @@
 README
 ------
 
-pdfview v.0.3.4
+pdfview v.0.3.5
 
 Homepage:
 
@@ -116,6 +116,8 @@ Install:
 
 History:
 
+    v.0.3.5  In the MacOSX version, add additional default
+             formatting
     v.0.3.4  In the MacOSX version, add -d option to dehyphenate
              text and -r option to print the raw text without any
              text replacements

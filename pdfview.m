@@ -16,6 +16,7 @@
                             only when no matches are found in a file
     v. 0.1.7 (07/26/2022) - add support for dehyphenation and removing
                             smart quotes, long hypens, etc.
+    v. 0.1.8 (07/27/2022) - add additional formatting
 
     Copyright (c) 2022 Sriranga R. Veeraraghavan <ranga@calalum.org>
 
@@ -49,6 +50,17 @@
 /* globals */
 
 static BOOL gQuiet = NO;
+
+/* text replacements for formatted definitions */
+
+static const NSDictionary *gReplacements =
+@{
+    @"“":             @"\"",
+    @"”":             @"\"",
+    @"’":             @"'",
+    @"‘":             @"'",
+    @"–":             @"-"
+};
 
 /* constants */
 
@@ -198,26 +210,15 @@ static BOOL printPDFPage(NSString *pageText,
 
     if (opts != NULL)
     {
-        if (opts->printPageNum == YES)
-        {
-            printPageNum = YES;
-        }
-        if (opts->countOnly == YES)
-        {
-            printCountOnly = YES;
-        }
-        if (opts->printPageCounts == YES)
-        {
-            printPageCount = YES;
-        }
+        printPageNum = opts->printPageNum;
+        printCountOnly = opts->countOnly;
+        printPageCount = opts->printPageCounts;
+        stopIfMatchFound = opts->listOnly;
+
         if (opts->pageCountsForMatchingPagesOnly == YES)
         {
             printPageCount = YES;
             matchingPagesOnly = YES;
-        }
-        if (opts->listOnly == YES)
-        {
-            stopIfMatchFound = YES;
         }
     }
 
@@ -382,8 +383,11 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
     PDFDocument *pdfDoc = nil;
     PDFPage *pdfPage = nil;
     NSUInteger pdfPages = 0, i = 0;
-    NSString *pageText = nil, *tmpPageText = nil;
+    NSMutableString *pageText = nil;
+    NSString *rawText = nil;
     NSString *fileName = nil;
+    id origStr;
+    NSEnumerator *replEnumerator = nil;
     BOOL printLines = NO;
     BOOL printCountOnly = NO;
     BOOL stopIfMatchFound = NO;
@@ -449,14 +453,15 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
             continue;
         }
 
-        tmpPageText = [pdfPage string];
-        if (tmpPageText == nil)
+        rawText = [pdfPage string];
+        if (rawText == nil)
         {
             continue;
         }
 
-        pageText = [tmpPageText stringByTrimmingCharactersInSet:
-                    [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        pageText = [[rawText stringByTrimmingCharactersInSet:
+                    [NSCharacterSet whitespaceAndNewlineCharacterSet]]
+                    mutableCopy];
         if (pageText == nil || [pageText length] <= 0)
         {
             continue;
@@ -464,68 +469,64 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
 
         if (dehyphenate == YES)
         {
-            tmpPageText =
-                [pageText stringByReplacingOccurrencesOfString: @"- "
-                                                    withString: @""];
-            if (tmpPageText == nil || [tmpPageText length] <= 0)
+            [pageText replaceOccurrencesOfString: @"- "
+                                      withString: @""
+                                         options: NSLiteralSearch
+                                           range: NSMakeRange(0,
+                                                 [pageText length])];
+            if ([pageText length] <= 0)
             {
                 continue;
             }
 
-            pageText =
-                [tmpPageText stringByReplacingOccurrencesOfString: @"-\n"
-                                                       withString: @""];
-            tmpPageText = pageText;
+            [pageText replaceOccurrencesOfString: @"-\n"
+                                      withString: @""
+                                         options: NSLiteralSearch
+                                           range: NSMakeRange(0,
+                                                 [pageText length])];
+            if ([pageText length] <= 0)
+            {
+                continue;
+            }
+
         }
         else
         {
-            tmpPageText =
-                [pageText stringByReplacingOccurrencesOfString: @"- "
-                                                    withString: @"-\n"];
-        }
-
-        if (tmpPageText == nil || [tmpPageText length] <= 0)
-        {
-            continue;
-        }
-
-        if (useRawText == YES)
-        {
-            pageText = tmpPageText;
-        }
-        else
-        {
-            pageText =
-                [tmpPageText stringByReplacingOccurrencesOfString: @"“"
-                                                       withString: @"\""];
-            if (pageText == nil || [pageText length] <= 0)
+            [pageText replaceOccurrencesOfString: @"- "
+                                      withString: @"-\n"
+                                         options: NSLiteralSearch
+                                           range: NSMakeRange(0,
+                                                 [pageText length])];
+            if ([pageText length] <= 0)
             {
                 continue;
             }
-
-            tmpPageText =
-                [pageText stringByReplacingOccurrencesOfString: @"”"
-                                                    withString: @"\""];
-            if (tmpPageText == nil || [tmpPageText length] <= 0)
-            {
-                continue;
-            }
-
-            pageText =
-                [tmpPageText stringByReplacingOccurrencesOfString: @"’"
-                                                       withString: @"'"];
-            if (pageText == nil || [pageText length] <= 0)
-            {
-                continue;
-            }
-
-            tmpPageText =
-                [pageText stringByReplacingOccurrencesOfString: @"–"
-                                                    withString: @"-"];
-            pageText = tmpPageText;
         }
 
-        if (pageText != nil && [pageText length] > 0)
+        /* unless rawtext is requested, perform some text replacements */
+
+        if (useRawText != YES)
+        {
+
+            replEnumerator = [gReplacements keyEnumerator];
+            if (replEnumerator != nil)
+            {
+                origStr = [replEnumerator nextObject];
+                while (origStr != nil && [pageText length] > 0)
+                {
+                    [pageText replaceOccurrencesOfString: origStr
+                                              withString:
+                                                [gReplacements objectForKey: origStr]
+                                                 options: NSLiteralSearch
+                                                   range: NSMakeRange(0,
+                                                          [pageText length])];
+                    origStr = [replEnumerator nextObject];
+                }
+            }
+
+        }
+
+        if ([pageText length] > 0)
         {
 
             /*
@@ -784,12 +785,6 @@ int main(int argc, char * const argv[])
             printError("Cannot determine file type for '%s'.\n", file);
             continue;
         }
-
-#ifdef PDFVIEW_DEBUG
-        fprintf(stderr,
-                "DEBUG: TYPE = '%s'\n",
-                [type cStringUsingEncoding: NSUTF8StringEncoding]);
-#endif /* PDFVIEW_DEBUG */
 
         if (![workspace type: type conformsToType: gUTIPDF])
         {
