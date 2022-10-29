@@ -17,6 +17,7 @@
     v. 0.1.7 (07/26/2022) - add support for dehyphenation and removing
                             smart quotes, long hypens, etc.
     v. 0.1.8 (07/27/2022) - add additional formatting
+    v. 0.1.9 (10/29/2022) - add support for Monterey (MacOSX 12.0)
 
     Copyright (c) 2022 Sriranga R. Veeraraghavan <ranga@calalum.org>
 
@@ -42,6 +43,16 @@
 
 #import <AppKit/AppKit.h>
 #import <PDFKit/PDFKit.h>
+
+/*
+    use UTT, if available
+    see: https://stackoverflow.com/questions/70512722
+*/
+
+#ifdef HAVE_UTT
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+#endif
+
 #import <stdio.h>
 #import <stdarg.h>
 #import <unistd.h>
@@ -64,7 +75,9 @@ static const NSDictionary *gReplacements =
 
 /* constants */
 
+#ifndef HAVE_UTT
 static NSString   *gUTIPDF  = @"com.adobe.pdf";
+#endif
 static const char *gPgmName = "pdfview";
 
 /*
@@ -618,10 +631,14 @@ int main(int argc, char * const argv[])
     BOOL optHelp = NO;
     NSFileManager *fm = nil;
     NSWorkspace *workspace = nil;
-    NSString *path = nil, *type = nil;
+    NSString *path = nil;
     NSURL *fURL = nil;
+    NSString *type = nil;
     NSError *error = nil;
     pdfview_opts_t opts;
+#ifdef HAVE_UTT
+    UTType *utt = nil;
+#endif
 
     /*
         create an autorelease pool:
@@ -786,7 +803,12 @@ int main(int argc, char * const argv[])
             continue;
         }
 
+#ifdef HAVE_UTT
+        utt = [UTType typeWithIdentifier: type];
+        if (![utt conformsToType: UTTypePDF])
+#else
         if (![workspace type: type conformsToType: gUTIPDF])
+#endif
         {
             printError("Not a PDF: '%s'\n", file);
             err++;

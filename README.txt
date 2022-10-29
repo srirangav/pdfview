@@ -1,7 +1,7 @@
 README
 ------
 
-pdfview v.0.3.5
+pdfview v.0.3.6
 
 Homepage:
 
@@ -116,6 +116,7 @@ Install:
 
 History:
 
+    v.0.3.6  Add support for Monterey (MacOSX 12)
     v.0.3.5  In the MacOSX version, add additional default
              formatting
     v.0.3.4  In the MacOSX version, add -d option to dehyphenate
@@ -140,10 +141,12 @@ History:
 
 Platforms:
 
-    pdfview has been tested on MacOSX (11.x).  pdfview.sh has
-    been tested on FreeBSD (13.0), OpenBSD (7.0), and Debian
-    (11.x).  It should work on other systems that have pdftotext
-    installed.
+    pdfview has been tested on MacOSX (11.x, 12.x).  It may work
+    on earlier versions (MacOSX 10.4 and newer).
+
+    pdfview.sh has been tested on FreeBSD (13.0), OpenBSD (7.0),
+    and Debian (11.x).  It should work on other systems that
+    have pdftotext installed.
 
 Notes:
 

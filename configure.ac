@@ -1,7 +1,7 @@
 dnl -*- Autoconf -*-
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([pdfview],[0.3.5],[ranga@calalum.org])
+AC_INIT([pdfview],[0.3.6],[ranga@calalum.org])
 
 # We want to turn on warnings if we are using gcc and the user did
 # not specify CFLAGS. The autoconf check for the C compiler sets the
@@ -58,6 +58,22 @@ if test $has_framework = 0; then
   AC_MSG_ERROR([AppKit is required])
 else
   AC_MSG_RESULT([yes])
+fi
+
+# check for UTType
+
+AC_MSG_CHECKING([for UTType])
+SAVE_LIBS="$LIBS"
+LIBS="$LIBS -framework UniformTypeIdentifiers"
+AC_LINK_IFELSE([AC_LANG_PROGRAM([#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>], [
+                [[UTType typeWithIdentifier: @"public.image"];]])
+                ],[has_framework=1],[has_framework=0])
+if test $has_framework = 0; then
+    AC_MSG_RESULT([no])
+    LIBS="$SAVE_LIBS"
+else
+    AC_MSG_RESULT([yes])
+    CFLAGS="$CFLAGS -DHAVE_UTT"
 fi
 
 dnl TEST_AND_SET_CFLAG(flag, [program])
