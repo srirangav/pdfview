@@ -19,9 +19,6 @@ INSTALL=@INSTALL@
 all:
 	$(OBJC) $(CFLAGS) -o $(PGM) $(PGM_SRCS) $(LIBS)
 
-lslangs:
-	$(OBJC) $(CFLAGS) -o lslangs listSupportedLangs.m $(LIBS)
-
 man2txt:
 	nroff -Tascii -man $(PGM_MAN) | col -b -x > $(PGM_MAN).txt
 
