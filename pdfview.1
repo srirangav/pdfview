@@ -35,14 +35,13 @@ an expression is not specified, this option is ignored.
 Enables page numbering \- each line of a given pdf will be
 prefixed with the filename and page number.
 .TP
-.B \-p
-Prints the total number of matches on each page.  If an
-expression is not specified, this option is ignored.
-.TP
-.B \-P
-Prints the total number of matches on each page, but skips
-pages with no matches.  If an expression is not specified,
-this option is ignored.
+.B \-p pages
+Only the text on the specified pages numbers, if present in
+the first file specified, will be printed.  Only the first
+specified file is processed.  All other files are ignored.
+The pages may be specified as a comma separated list and can
+include page ranges.  The specified pages are sorted and printed
+in sorted order, rather than in the specified order.
 .TP
 .B \-q
 Enables quiet mode \- error messages will not be printed.
@@ -50,6 +49,15 @@ Enables quiet mode \- error messages will not be printed.
 .B \-r
 enables raw mode \- no text replacements are performed
 (except dehyphenation, if requested)
+.TP
+.B \-t
+Prints the total number of matches on each page.  If an
+expression is not specified, this option is ignored.
+.TP
+.B \-T
+Prints the total number of matches on each page, but skips
+pages with no matches.  If an expression is not specified,
+this option is ignored.
 .SH PLATFORMS
 pdfview has been tested on MacOSX 11.x (BigSur) and 12.x
 (Monterey) on M1.  It should work on MacOSX 10.4 (Tiger)

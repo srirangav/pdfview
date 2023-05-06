@@ -3,23 +3,24 @@
 
     History:
 
-    v. 0.1.0 (07/06/2022) - Initial version
-    v. 0.1.1 (07/11/2022) - add page numbering support
-    v. 0.1.2 (07/13/2022) - move page numbering support to a separate
+    v. 0.1.0  (07/06/2022) - Initial version
+    v. 0.1.1  (07/11/2022) - add page numbering support
+    v. 0.1.2  (07/13/2022) - move page numbering support to a separate
                             function
-    v. 0.1.3 (07/21/2022) - add expression matching support
-    v. 0.1.4 (07/24/2022) - add support for printing counts of matches
-    v. 0.1.5 (07/25/2022) - allow searching to stop once the first
+    v. 0.1.3  (07/21/2022) - add expression matching support
+    v. 0.1.4  (07/24/2022) - add support for printing counts of matches
+    v. 0.1.5  (07/25/2022) - allow searching to stop once the first
                             match is found
-    v. 0.1.6 (07/25/2022) - add support for printing counts only on
+    v. 0.1.6  (07/25/2022) - add support for printing counts only on
                             matching pages and for printing filenames
                             only when no matches are found in a file
-    v. 0.1.7 (07/26/2022) - add support for dehyphenation and removing
+    v. 0.1.7  (07/26/2022) - add support for dehyphenation and removing
                             smart quotes, long hypens, etc.
-    v. 0.1.8 (07/27/2022) - add additional formatting
-    v. 0.1.9 (10/29/2022) - add support for Monterey (MacOSX 12.0)
+    v. 0.1.8  (07/27/2022) - add additional formatting
+    v. 0.1.9  (10/29/2022) - add support for Monterey (MacOSX 12.0)
+    v. 0.1.10 (05/06/2023) - add support for printing particular pages
 
-    Copyright (c) 2022 Sriranga R. Veeraraghavan <ranga@calalum.org>
+    Copyright (c) 2022-2023 Sriranga R. Veeraraghavan <ranga@calalum.org>
 
     Permission is hereby granted, free of charge, to any person obtaining
     a copy of this software and associated documentation files (the
@@ -57,6 +58,7 @@
 #import <stdarg.h>
 #import <unistd.h>
 #import <string.h>
+#import <ctype.h>
 
 /* globals */
 
@@ -92,16 +94,17 @@ static const char *gPgmName = "pdfview";
         -e - print lines that match the specified expression
         -c - if an expression is specified, print the total matches
              instead of each matching line
-        -p - if an expression is specified, print the total matches
-             per page
-        -P - if an expression is specified, print the total matches
-             per page only on pages where there are matches
         -i - if an expression is specified, when looking for matches,
              ignore case
         -l - if an expression is specified, stop searching once a
              match is found and just print out the file name
         -L - if an expression is specified, print out the file name
              only if no matches are found in a file
+        -p - only display the specified pages
+        -t - if an expression is specified, print the total matches
+             per page
+        -T - if an expression is specified, print the total matches
+             per page only on pages where there are matches
 */
 
 enum
@@ -113,14 +116,15 @@ enum
     gPgmOptIgnoreCase  = 'i',
     gPgmOptListOnly    = 'l',
     gPgmOptPageNum     = 'n',
-    gPgmOptPageCount   = 'p',
+    gPgmOptPages       = 'p',
     gPgmOptQuiet       = 'q',
     gPgmOptRaw         = 'r',
+    gPgmOptPageCount   = 't',
     gPgmOptListOnlyWhenNoMatches = 'L',
-    gPgmOptPageCountMatchingOnly = 'P',
+    gPgmOptPageCountMatchingOnly = 'T',
 };
 
-static const char *gPgmOpts = "cdhilLnpPqre:";
+static const char *gPgmOpts = "cdhilLntTqre:p:";
 
 /* options */
 
@@ -136,6 +140,7 @@ typedef struct
     BOOL dehyphenate;
     BOOL useRawText;
     const char *regex;
+    const char *pages;
     NSUInteger totalMatches;
 } pdfview_opts_t;
 
@@ -156,7 +161,7 @@ static void printUsage(void);
 static void printUsage(void)
 {
     fprintf(stderr,
-            "Usage: %s [-%c] [-%c] [-%c] [-%c] [-%c [expression] -%c [-%c|-%c] [-%c|-%c] -%c] [files]\n",
+            "Usage: %s [-%c] [-%c] [-%c] [-%c] [-%c [expression] -%c [-%c|-%c] [-%c|-%c] -%c] [-%c [pages]] [files]\n",
             gPgmName,
             gPgmOptQuiet,
             gPgmOptPageNum,
@@ -168,7 +173,8 @@ static void printUsage(void)
             gPgmOptPageCountMatchingOnly,
             gPgmOptListOnly,
             gPgmOptListOnlyWhenNoMatches,
-            gPgmOptIgnoreCase);
+            gPgmOptIgnoreCase,
+            gPgmOptPages);
 }
 
 /* printError - print an error message */
@@ -399,7 +405,13 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
     NSMutableString *pageText = nil;
     NSString *rawText = nil;
     NSString *fileName = nil;
+    NSString *pages = nil;
+    NSMutableIndexSet *pagesToPrint = nil;
+    NSArray *requestedPages = nil;
+    NSEnumerator *enumerator = nil;
+    NSRange range;
     id origStr;
+    id requestedPage;
     NSEnumerator *replEnumerator = nil;
     BOOL printLines = NO;
     BOOL printCountOnly = NO;
@@ -440,6 +452,56 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
                 stopIfMatchFound = YES;
             }
         }
+
+        if (opts->pages != NULL)
+        {
+            do
+            {
+                pages = [NSString stringWithUTF8String: opts->pages];
+                if (pages == nil)
+                {
+                    break;
+                }
+
+                requestedPages = [pages componentsSeparatedByString: @","];
+                if (requestedPages == nil)
+                {
+                    break;
+                }
+
+                pagesToPrint = [[NSMutableIndexSet alloc] init];
+                if (pagesToPrint == nil)
+                {
+                    break;
+                }
+
+                enumerator = [requestedPages objectEnumerator];
+                if (enumerator == nil)
+                {
+                    break;
+                }
+
+                while ((requestedPage = [enumerator nextObject]) != nil)
+                {
+                    range = NSRangeFromString(requestedPage);
+                    if (range.location == 0 && range.length == 0)
+                    {
+                        continue;
+                    }
+
+                    if (range.location > 0 && range.length == 0)
+                    {
+                        [pagesToPrint addIndex: range.location];
+                        continue;
+                    }
+
+                    [pagesToPrint addIndexesInRange:
+                        NSMakeRange(range.location,
+                                    (range.length - range.location)+1)];
+                }
+            } while(0);
+        }
+
     }
 
     pdfDoc = [[PDFDocument alloc] initWithURL: url];
@@ -460,6 +522,15 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
 
     for(i = 0 ; i < pdfPages ; i++)
     {
+
+        if (pagesToPrint != nil)
+        {
+            if ([pagesToPrint containsIndex: i+1] == NO)
+            {
+                continue;
+            }
+        }
+
         pdfPage = [pdfDoc pageAtIndex: i];
         if (pdfPage == NULL)
         {
@@ -628,6 +699,8 @@ int main(int argc, char * const argv[])
 {
     int i = 0, err = 0, ch = 0;
     const char *file = NULL;
+    char *p = NULL;
+    BOOL validRange = NO;
     BOOL optHelp = NO;
     NSFileManager *fm = nil;
     NSWorkspace *workspace = nil;
@@ -658,6 +731,7 @@ int main(int argc, char * const argv[])
     opts.dehyphenate = NO;
     opts.useRawText = NO;
     opts.regex = NULL;
+    opts.pages = NULL;
     opts.totalMatches = 0;
 
     while ((ch = getopt(argc, argv, gPgmOpts)) != -1)
@@ -698,6 +772,43 @@ int main(int argc, char * const argv[])
             case gPgmOptPageCountMatchingOnly:
                 opts.printPageCounts = YES;
                 opts.pageCountsForMatchingPagesOnly = YES;
+                break;
+            case gPgmOptPages:
+                if (optarg[0] == '\0')
+                {
+                    fprintf(stderr,"Error: No pages specified\n");
+                    err++;
+                }
+                else
+                {
+                    p = optarg;
+
+                    if (isnumber((int)p[0]) != 0)
+                    {
+                        validRange = YES;
+                        while (validRange == YES && p[0] != '\0')
+                        {
+                            if (isnumber((int)p[0]) != 0 ||
+                                p[0] == ',' || p[0] == '-')
+                            {
+                                p++;
+                                continue;
+                            }
+                            validRange = NO;
+                        }
+                    }
+
+                    if (validRange != YES)
+                    {
+                        fprintf(stderr,"Error: Invalid page specified: %s\n", optarg);
+                        err++;
+                    }
+                    else
+                    {
+                        opts.pages = optarg;
+                    }
+
+                }
                 break;
             case gPgmOptRegex:
                 if (optarg[0] == '\0')
@@ -825,6 +936,15 @@ int main(int argc, char * const argv[])
         /* reset the total number of matches */
 
         opts.totalMatches = 0;
+
+        /* if particular pages to display were specified, ignore
+           any additional files that may be been provided on the
+           command line */
+
+        if (opts.pages != NULL)
+        {
+            break;
+        }
     }
 
     return err;

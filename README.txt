@@ -1,7 +1,7 @@
 README
 ------
 
-pdfview v.0.3.6
+pdfview v.0.4.0
 
 Homepage:
 
@@ -55,17 +55,6 @@ Usage:
         expression is printed. If an expression is not specified,
         this option is ignored.
 
-        If -p is specified, then, instead of printing matching
-        lines, the total number of matches for the specified
-        expression on each page is printed.  If an expression is
-        not specified, this option is ignored.
-
-        If -P is specified, then, instead of printing matching
-        lines, the total number of matches for the specified
-        expression on each page with more than one match is
-        printed.  If an expression is not specified, this option
-        is ignored.
-
         If -l is specified, as soon as the first match, searching
         stops and the filename containing the match is printed.
         If an expression is not specified, this option is ignored.
@@ -73,6 +62,26 @@ Usage:
         If -L is specified, the filename is printed only if it
         does not contain a match is printed.  If an expression is
         not specified, this option is ignored.
+
+        If -p [pages] is specified, then only the text on the
+        specified pages numbers, if present in the first file,
+        provided to pdfview will be printed.  If this option is
+        specified, only the first file provided to pdfview is
+        processed.  All other files are ignored.  The pages may
+        be specified as a comma separated list and can include
+        page ranges.  The specified pages are sorted and printed
+        in sorted order, rather than in the specified order.
+
+        If -t is specified, then, instead of printing matching
+        lines, the total number of matches for the specified
+        expression on each page is printed.  If an expression is
+        not specified, this option is ignored.
+
+        If -T is specified, then, instead of printing matching
+        lines, the total number of matches for the specified
+        expression on each page with more than one match is
+        printed.  If an expression is not specified, this option
+        is ignored.
 
 Build (MacOSX only):
 
@@ -116,6 +125,7 @@ Install:
 
 History:
 
+    v.0.4.0  Add support for printing specific pages
     v.0.3.6  Add support for Monterey (MacOSX 12)
     v.0.3.5  In the MacOSX version, add additional default
              formatting
