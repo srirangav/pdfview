@@ -64,6 +64,17 @@
 
 static BOOL gQuiet = NO;
 
+/* constants */
+
+#ifndef HAVE_UTT
+static NSString   *gUTIPDF      = @"com.adobe.pdf";
+#endif
+
+/* program name and version */
+
+static const char *gPgmName     = "pdfview";
+static const char *gPgmVersion  = "0.4.0";
+
 /* text replacements for formatted definitions */
 
 static const NSDictionary *gReplacements =
@@ -74,13 +85,6 @@ static const NSDictionary *gReplacements =
     @"‘":             @"'",
     @"–":             @"-"
 };
-
-/* constants */
-
-#ifndef HAVE_UTT
-static NSString   *gUTIPDF  = @"com.adobe.pdf";
-#endif
-static const char *gPgmName = "pdfview";
 
 /*
     command line options:
@@ -105,6 +109,7 @@ static const char *gPgmName = "pdfview";
              per page
         -T - if an expression is specified, print the total matches
              per page only on pages where there are matches
+        -v - print the version
 */
 
 enum
@@ -120,11 +125,12 @@ enum
     gPgmOptQuiet       = 'q',
     gPgmOptRaw         = 'r',
     gPgmOptPageCount   = 't',
+    gPgmOptVersion     = 'v',
     gPgmOptListOnlyWhenNoMatches = 'L',
     gPgmOptPageCountMatchingOnly = 'T',
 };
 
-static const char *gPgmOpts = "cdhilLntTqre:p:";
+static const char *gPgmOpts = "cdhilLntTqrve:p:";
 
 /* options */
 
@@ -153,6 +159,7 @@ static BOOL printPDFPage(NSString *pageText,
                          NSString *fileName,
                          pdfview_opts_t *opts);
 static void printUsage(void);
+static void printVersion(void);
 
 /* functions */
 
@@ -192,6 +199,13 @@ static void printError(const char *format, ...)
     fprintf(stderr,"ERROR: ");
     vfprintf(stderr, format, args);
     va_end(args);
+}
+
+/* printVersion - print the program version */
+
+static void printVersion(void)
+{
+    fprintf(stdout, "%s: version %s\n", gPgmName, gPgmVersion);
 }
 
 /* printPDFPage - prints the text for a particular page of a PDF */
@@ -702,6 +716,7 @@ int main(int argc, char * const argv[])
     char *p = NULL;
     BOOL validRange = NO;
     BOOL optHelp = NO;
+    BOOL optVersion = NO;
     NSFileManager *fm = nil;
     NSWorkspace *workspace = nil;
     NSString *path = nil;
@@ -738,6 +753,9 @@ int main(int argc, char * const argv[])
     {
         switch(ch)
         {
+            case gPgmOptVersion:
+                optVersion = YES;
+                break;
             case gPgmOptHelp:
                 optHelp = YES;
                 break;
@@ -830,9 +848,15 @@ int main(int argc, char * const argv[])
                 break;
         }
 
-        if (optHelp || err > 0)
+        if (optHelp == YES || err > 0)
         {
             printUsage();
+            break;
+        }
+
+        if (optVersion == YES)
+        {
+            printVersion();
             break;
         }
     }
@@ -842,7 +866,7 @@ int main(int argc, char * const argv[])
         return err;
     }
 
-    if (optHelp)
+    if (optHelp == YES || optVersion == YES)
     {
         return 0;
     }
