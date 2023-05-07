@@ -6,19 +6,20 @@
     v. 0.1.0  (07/06/2022) - Initial version
     v. 0.1.1  (07/11/2022) - add page numbering support
     v. 0.1.2  (07/13/2022) - move page numbering support to a separate
-                            function
+                             function
     v. 0.1.3  (07/21/2022) - add expression matching support
     v. 0.1.4  (07/24/2022) - add support for printing counts of matches
     v. 0.1.5  (07/25/2022) - allow searching to stop once the first
-                            match is found
+                             match is found
     v. 0.1.6  (07/25/2022) - add support for printing counts only on
-                            matching pages and for printing filenames
-                            only when no matches are found in a file
+                             matching pages and for printing filenames
+                             only when no matches are found in a file
     v. 0.1.7  (07/26/2022) - add support for dehyphenation and removing
-                            smart quotes, long hypens, etc.
+                             smart quotes, long hypens, etc.
     v. 0.1.8  (07/27/2022) - add additional formatting
     v. 0.1.9  (10/29/2022) - add support for Monterey (MacOSX 12.0)
     v. 0.1.10 (05/06/2023) - add support for printing particular pages
+    v. 0.1.11 (05/06/2023) - add support for printing PDF metadata
 
     Copyright (c) 2022-2023 Sriranga R. Veeraraghavan <ranga@calalum.org>
 
@@ -46,13 +47,13 @@
 #import <PDFKit/PDFKit.h>
 
 /*
-    use UTT, if available
+    use Uniform Type Identifiers, if available
     see: https://stackoverflow.com/questions/70512722
 */
 
 #ifdef HAVE_UTT
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
-#endif
+#endif /* HAVE_UTT */
 
 #import <stdio.h>
 #import <stdarg.h>
@@ -68,7 +69,7 @@ static BOOL gQuiet = NO;
 
 #ifndef HAVE_UTT
 static NSString   *gUTIPDF      = @"com.adobe.pdf";
-#endif
+#endif /* HAVE_UTT */
 
 /* program name and version */
 
@@ -79,11 +80,11 @@ static const char *gPgmVersion  = "0.4.0";
 
 static const NSDictionary *gReplacements =
 @{
-    @"“":             @"\"",
-    @"”":             @"\"",
-    @"’":             @"'",
-    @"‘":             @"'",
-    @"–":             @"-"
+    @"“": @"\"",
+    @"”": @"\"",
+    @"’": @"'",
+    @"‘": @"'",
+    @"–": @"-"
 };
 
 /*
@@ -104,6 +105,7 @@ static const NSDictionary *gReplacements =
              match is found and just print out the file name
         -L - if an expression is specified, print out the file name
              only if no matches are found in a file
+        -m - only list metadata / information about each file
         -p - only display the specified pages
         -t - if an expression is specified, print the total matches
              per page
@@ -120,6 +122,7 @@ enum
     gPgmOptRegex       = 'e',
     gPgmOptIgnoreCase  = 'i',
     gPgmOptListOnly    = 'l',
+    gPgmOptMetadata    = 'm',
     gPgmOptPageNum     = 'n',
     gPgmOptPages       = 'p',
     gPgmOptQuiet       = 'q',
@@ -130,7 +133,7 @@ enum
     gPgmOptPageCountMatchingOnly = 'T',
 };
 
-static const char *gPgmOpts = "cdhilLntTqrve:p:";
+static const char *gPgmOpts = "cdhilLmntTqrve:p:";
 
 /* options */
 
@@ -146,20 +149,24 @@ typedef struct
     BOOL dehyphenate;
     BOOL useRawText;
     const char *regex;
-    const char *pages;
     NSUInteger totalMatches;
+    NSMutableIndexSet *pagesToPrint;
 } pdfview_opts_t;
 
 /* prototypes */
 
+static void printUsage(void);
 static void printError(const char *format, ...);
+static void printVersion(void);
+static BOOL isValidRange(const char *range);
+static BOOL makePageSetFromRange(const char *range,
+                                 NSIndexSet *pageSet);
 static BOOL printPDF(NSURL *url, pdfview_opts_t *opts);
 static BOOL printPDFPage(NSString *pageText,
                          NSUInteger pageNo,
                          NSString *fileName,
                          pdfview_opts_t *opts);
-static void printUsage(void);
-static void printVersion(void);
+static BOOL printPDFMetadata(NSURL *url);
 
 /* functions */
 
@@ -206,6 +213,110 @@ static void printError(const char *format, ...)
 static void printVersion(void)
 {
     fprintf(stdout, "%s: version %s\n", gPgmName, gPgmVersion);
+}
+
+/*
+   isValidRange - checks to see if the specified range contains
+                  only numbers, commas (','), or dashes ('-')
+*/
+
+static BOOL isValidRange(const char *range)
+{
+    const char *p = NULL;
+    BOOL validRange = NO;
+
+    if (range == NULL || range[0] == '\0')
+    {
+        return validRange;
+    }
+
+    p = range;
+
+    /* confirm that the range starts with a number */
+
+    if (isnumber((int)*p) == 0)
+    {
+        return validRange;
+    }
+
+    validRange = YES;
+    p++;
+    while (validRange == YES && *p != '\0')
+    {
+        if (isnumber((int)*p) != 0 ||
+            *p == ',' || *p == '-')
+        {
+            p++;
+            continue;
+        }
+        validRange = NO;
+    }
+
+    return validRange;
+}
+
+static BOOL makePageSetFromRange(const char *range,
+                                 NSMutableIndexSet *pageSet)
+{
+    NSString *rawRange = nil;
+    NSArray *requestedPages = nil;
+    NSRange subRange;
+    NSEnumerator *enumerator = nil;
+    id requestedPage;
+
+    if (range == NULL || pageSet == nil)
+    {
+        return NO;
+    }
+
+    if (isValidRange(range) != YES)
+    {
+        return NO;
+    }
+
+    rawRange = [NSString stringWithUTF8String: range];
+    if (rawRange == nil)
+    {
+        return NO;
+    }
+
+    requestedPages = [rawRange componentsSeparatedByString: @","];
+    if (requestedPages == nil)
+    {
+        return NO;
+    }
+
+    enumerator = [requestedPages objectEnumerator];
+    if (enumerator == nil)
+    {
+        return NO;
+    }
+
+    while ((requestedPage = [enumerator nextObject]) != nil)
+    {
+        subRange = NSRangeFromString(requestedPage);
+        if (subRange.location == 0 && subRange.length == 0)
+        {
+            continue;
+        }
+
+        if (subRange.location > 0 && subRange.length == 0)
+        {
+            [pageSet addIndex: subRange.location];
+            continue;
+        }
+
+        [pageSet addIndexesInRange:
+            NSMakeRange(subRange.location,
+                        (subRange.length - subRange.location)+1)];
+    }
+
+    if ([pageSet count] <= 0)
+    {
+        return NO;
+    }
+
+    return YES;
 }
 
 /* printPDFPage - prints the text for a particular page of a PDF */
@@ -415,23 +526,19 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
 {
     PDFDocument *pdfDoc = nil;
     PDFPage *pdfPage = nil;
-    NSUInteger pdfPages = 0, i = 0;
+    NSUInteger pdfPages = 0, i = 0, j = 0;
+    NSUInteger firstPage = 0, lastPage = 0;
     NSMutableString *pageText = nil;
     NSString *rawText = nil;
     NSString *fileName = nil;
-    NSString *pages = nil;
-    NSMutableIndexSet *pagesToPrint = nil;
-    NSArray *requestedPages = nil;
-    NSEnumerator *enumerator = nil;
-    NSRange range;
     id origStr;
-    id requestedPage;
     NSEnumerator *replEnumerator = nil;
     BOOL printLines = NO;
     BOOL printCountOnly = NO;
     BOOL stopIfMatchFound = NO;
     BOOL dehyphenate = NO;
     BOOL useRawText = NO;
+    BOOL havePages = NO;
 
     if (url == nil)
     {
@@ -467,55 +574,24 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
             }
         }
 
-        if (opts->pages != NULL)
+        if (opts->pagesToPrint != nil)
         {
-            do
+            havePages = YES;
+            firstPage = [opts->pagesToPrint firstIndex];
+            if (firstPage == NSNotFound)
             {
-                pages = [NSString stringWithUTF8String: opts->pages];
-                if (pages == nil)
-                {
-                    break;
-                }
+                firstPage = 0;
+                havePages = NO;
+            }
 
-                requestedPages = [pages componentsSeparatedByString: @","];
-                if (requestedPages == nil)
-                {
-                    break;
-                }
-
-                pagesToPrint = [[NSMutableIndexSet alloc] init];
-                if (pagesToPrint == nil)
-                {
-                    break;
-                }
-
-                enumerator = [requestedPages objectEnumerator];
-                if (enumerator == nil)
-                {
-                    break;
-                }
-
-                while ((requestedPage = [enumerator nextObject]) != nil)
-                {
-                    range = NSRangeFromString(requestedPage);
-                    if (range.location == 0 && range.length == 0)
-                    {
-                        continue;
-                    }
-
-                    if (range.location > 0 && range.length == 0)
-                    {
-                        [pagesToPrint addIndex: range.location];
-                        continue;
-                    }
-
-                    [pagesToPrint addIndexesInRange:
-                        NSMakeRange(range.location,
-                                    (range.length - range.location)+1)];
-                }
-            } while(0);
+            lastPage = [opts->pagesToPrint lastIndex];
+            if (lastPage == NSNotFound)
+            {
+                firstPage = 0;
+                lastPage = 0;
+                havePages = NO;
+            }
         }
-
     }
 
     pdfDoc = [[PDFDocument alloc] initWithURL: url];
@@ -537,19 +613,43 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
     for(i = 0 ; i < pdfPages ; i++)
     {
 
-        if (pagesToPrint != nil)
+        /* if particular pages are requested, skip all other pages */
+
+        if (havePages)
         {
-            if ([pagesToPrint containsIndex: i+1] == NO)
+            j = i+1;
+
+            /* past the last requested page, we are done */
+
+            if (j > lastPage)
+            {
+                break;
+            }
+
+            /* before the first requested page, move on */
+
+            if (j < firstPage)
+            {
+                continue;
+            }
+
+            /* is this page requested? if not, move on */
+
+            if ([opts->pagesToPrint containsIndex: j] == NO)
             {
                 continue;
             }
         }
+
+        /* get the current page */
 
         pdfPage = [pdfDoc pageAtIndex: i];
         if (pdfPage == NULL)
         {
             continue;
         }
+
+        /* get the text on this page */
 
         rawText = [pdfPage string];
         if (rawText == nil)
@@ -707,16 +807,103 @@ static BOOL printPDF(NSURL *url, pdfview_opts_t *opts)
     return YES;
 }
 
+/* printPDFMetadata - print the metadata for the specified PDF */
+
+static BOOL printPDFMetadata(NSURL *url)
+{
+    PDFDocument *pdfDoc = nil;
+    NSString *fileName = nil;
+    NSMutableString *pdfRestrictions = nil;
+    NSUInteger pdfPages = 0;
+
+    if (url == nil)
+    {
+        printError("No file specified!\n");
+        return NO;
+    }
+
+    fileName = [url lastPathComponent];
+    if (fileName == nil)
+    {
+        fileName = @"";
+    }
+
+    pdfDoc = [[PDFDocument alloc] initWithURL: url];
+    if (pdfDoc == nil)
+    {
+        printError("%s: Not a valid PDF!\n",
+                   [fileName cStringUsingEncoding: NSUTF8StringEncoding]);
+        return NO;
+    }
+
+    fprintf(stdout, "%s: ",
+            [fileName cStringUsingEncoding: NSUTF8StringEncoding]);
+
+    pdfPages = [pdfDoc pageCount];
+    fprintf(stdout, "%ld page%s",
+            pdfPages, (pdfPages == 1 ? "" : "s"));
+
+    if ([pdfDoc isEncrypted] == YES)
+    {
+        fprintf(stdout, ", encrypted");
+    }
+
+    if ([pdfDoc isLocked] == YES)
+    {
+        fprintf(stdout, ", locked");
+    }
+
+    pdfRestrictions = [[NSMutableString alloc] init];
+    if (pdfRestrictions == nil)
+    {
+        fprintf(stdout, "\n");
+        return NO;
+    }
+
+    if ([pdfDoc allowsCopying] == NO)
+    {
+        [pdfRestrictions appendFormat: @", %s", "copying"];
+    }
+
+    if ([pdfDoc allowsPrinting] == NO)
+    {
+        [pdfRestrictions appendFormat: @", %s", "printing"];
+    }
+
+    if (@available(macos 10.13, *))
+    {
+        if ([pdfDoc allowsDocumentChanges] == NO ||
+            [pdfDoc allowsDocumentAssembly] == NO)
+        {
+            [pdfRestrictions appendFormat: @", %s", "changes"];
+        }
+
+        if ([pdfDoc allowsCommenting] == NO)
+        {
+            [pdfRestrictions appendFormat: @", %s", "comments"];
+        }
+    }
+
+    if ([pdfRestrictions length] > 0)
+    {
+        fprintf(stdout, ", No %s",
+                [pdfRestrictions cStringUsingEncoding: NSUTF8StringEncoding]);
+    }
+
+    fprintf(stdout, "\n");
+
+    return YES;
+}
+
 /* main */
 
 int main(int argc, char * const argv[])
 {
     int i = 0, err = 0, ch = 0;
     const char *file = NULL;
-    char *p = NULL;
-    BOOL validRange = NO;
     BOOL optHelp = NO;
     BOOL optVersion = NO;
+    BOOL optMetaDataOnly = NO;
     NSFileManager *fm = nil;
     NSWorkspace *workspace = nil;
     NSString *path = nil;
@@ -746,8 +933,8 @@ int main(int argc, char * const argv[])
     opts.dehyphenate = NO;
     opts.useRawText = NO;
     opts.regex = NULL;
-    opts.pages = NULL;
     opts.totalMatches = 0;
+    opts.pagesToPrint = nil;
 
     while ((ch = getopt(argc, argv, gPgmOpts)) != -1)
     {
@@ -791,43 +978,28 @@ int main(int argc, char * const argv[])
                 opts.printPageCounts = YES;
                 opts.pageCountsForMatchingPagesOnly = YES;
                 break;
+            case gPgmOptMetadata:
+                optMetaDataOnly = YES;
+                break;
             case gPgmOptPages:
                 if (optarg[0] == '\0')
                 {
-                    fprintf(stderr,"Error: No pages specified\n");
+                    printError("No pages specified\n");
                     err++;
+                    break;
                 }
-                else
+
+                opts.pagesToPrint = [[NSMutableIndexSet alloc] init];
+                if (makePageSetFromRange(optarg, opts.pagesToPrint) == NO)
                 {
-                    p = optarg;
-
-                    if (isnumber((int)p[0]) != 0)
-                    {
-                        validRange = YES;
-                        while (validRange == YES && p[0] != '\0')
-                        {
-                            if (isnumber((int)p[0]) != 0 ||
-                                p[0] == ',' || p[0] == '-')
-                            {
-                                p++;
-                                continue;
-                            }
-                            validRange = NO;
-                        }
-                    }
-
-                    if (validRange != YES)
-                    {
-                        fprintf(stderr,"Error: Invalid page specified: %s\n", optarg);
-                        err++;
-                    }
-                    else
-                    {
-                        opts.pages = optarg;
-                    }
-
+                    printError("Can't create page set from specification: %s\n",
+                               optarg);
+                    err++;
+                    break;
                 }
+
                 break;
+
             case gPgmOptRegex:
                 if (optarg[0] == '\0')
                 {
@@ -857,6 +1029,11 @@ int main(int argc, char * const argv[])
         if (optVersion == YES)
         {
             printVersion();
+            break;
+        }
+
+        if (optMetaDataOnly == YES)
+        {
             break;
         }
     }
@@ -950,6 +1127,15 @@ int main(int argc, char * const argv[])
             continue;
         }
 
+        if (optMetaDataOnly)
+        {
+            if (printPDFMetadata(fURL) != TRUE)
+            {
+                err++;
+            }
+            continue;
+        }
+
         /* this is a valid PDF, attempt to print it */
 
         if (printPDF(fURL, &opts) != TRUE)
@@ -965,7 +1151,7 @@ int main(int argc, char * const argv[])
            any additional files that may be been provided on the
            command line */
 
-        if (opts.pages != NULL)
+        if (opts.pagesToPrint != nil)
         {
             break;
         }

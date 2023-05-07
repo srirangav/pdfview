@@ -1,7 +1,7 @@
 README
 ------
 
-pdfview v.0.4.0
+pdfview v.0.4.1
 
 Homepage:
 
@@ -83,6 +83,9 @@ Usage:
         printed.  If an expression is not specified, this option
         is ignored.
 
+        If -m is specified, then the available metadata (instead
+        of the content) of each file is printed.
+
 Build (MacOSX only):
 
     $ ./configure
@@ -125,6 +128,7 @@ Install:
 
 History:
 
+    v.0.4.1  Add support for printing metadata
     v.0.4.0  Add support for printing specific pages
     v.0.3.6  Add support for Monterey (MacOSX 12)
     v.0.3.5  In the MacOSX version, add additional default

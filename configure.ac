@@ -1,7 +1,7 @@
 dnl -*- Autoconf -*-
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([pdfview],[0.4.0],[ranga@calalum.org])
+AC_INIT([pdfview],[0.4.1],[ranga@calalum.org])
 
 # We want to turn on warnings if we are using gcc and the user did
 # not specify CFLAGS. The autoconf check for the C compiler sets the
